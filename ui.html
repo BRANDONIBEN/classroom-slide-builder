@@ -1239,6 +1239,7 @@ function unlockPlugin() {
   initCourseData();
   // Load saved settings (colors, fonts, etc.) after unlock
   parent.postMessage({ pluginMessage: { type: 'loadSettings' } }, '*');
+  setTimeout(resizeUI, 50);
 }
 
 document.getElementById('lockUnlockBtn').addEventListener('click', function () {
@@ -1960,9 +1961,15 @@ function saveCurrentSettings() {
 // Settings are loaded after unlock — see unlockPlugin()
 
 function resizeUI() {
-  // Use a wrapper div to measure true content height independent of viewport
+  var lock = document.getElementById('lockScreen');
   var wrapper = document.getElementById('uiWrapper');
-  var h = wrapper.offsetHeight + 32; // 32 = body padding top+bottom
+  var h;
+  if (lock.style.display !== 'none') {
+    h = lock.offsetHeight + 32;
+  } else {
+    h = wrapper.offsetHeight + 32;
+  }
+  if (h < 100) h = 100;
   parent.postMessage({ pluginMessage: { type: 'resize', height: h } }, '*');
 }
 
