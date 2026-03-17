@@ -315,12 +315,12 @@
 <body>
 
 <!-- Lock screen -->
-<div id="lockScreen" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:16px;padding:40px 20px;">
-  <div style="font-size:28px;opacity:0.3;margin-bottom:4px;">&#x2731;</div>
-  <div style="font-size:14px;font-weight:600;color:#fff;">Classroom Slide Builder</div>
-  <div style="font-size:11px;color:#888;text-align:center;line-height:1.5;">Enter the team password to continue</div>
-  <input type="password" id="lockPassword" placeholder="Password" style="width:200px;padding:8px 12px;background:#2a2a2a;border:1px solid #3a3a3a;border-radius:6px;color:#e0e0e0;font-size:13px;text-align:center;outline:none;" />
-  <button id="lockUnlockBtn" style="padding:6px 24px;background:#D4A853;color:#1e1e1e;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">Unlock</button>
+<div id="lockScreen" style="display:flex;flex-direction:column;align-items:center;gap:12px;padding:24px 20px;">
+  <div style="font-size:13px;font-weight:600;color:#fff;">Enter team password</div>
+  <div style="display:flex;gap:8px;width:100%;max-width:280px;">
+    <input type="password" id="lockPassword" placeholder="Password" style="flex:1;padding:8px 12px;background:#2a2a2a;border:1px solid #3a3a3a;border-radius:6px;color:#e0e0e0;font-size:13px;outline:none;" />
+    <button id="lockUnlockBtn" style="padding:8px 16px;background:#D4A853;color:#1e1e1e;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;">Unlock</button>
+  </div>
   <div id="lockError" style="font-size:11px;color:#c87070;display:none;">Incorrect password</div>
 </div>
 
@@ -1237,13 +1237,15 @@ function unlockPlugin() {
   document.getElementById('lockScreen').style.display = 'none';
   document.getElementById('uiWrapper').style.display = 'flex';
   initCourseData();
+  // Load saved settings (colors, fonts, etc.) after unlock
+  parent.postMessage({ pluginMessage: { type: 'loadSettings' } }, '*');
 }
 
 document.getElementById('lockUnlockBtn').addEventListener('click', function () {
   var pw = document.getElementById('lockPassword').value.trim();
   if (pw === PLUGIN_PASSWORD) {
-    // Save unlock state
-    parent.postMessage({ pluginMessage: { type: 'saveSettings', settings: { _unlocked: true } } }, '*');
+    // Save unlock flag separately
+    parent.postMessage({ pluginMessage: { type: 'saveUnlock' } }, '*');
     unlockPlugin();
   } else {
     document.getElementById('lockError').style.display = 'block';
@@ -1256,7 +1258,7 @@ document.getElementById('lockPassword').addEventListener('keydown', function (e)
 });
 
 // Check if previously unlocked
-parent.postMessage({ pluginMessage: { type: 'loadSettings' } }, '*');
+parent.postMessage({ pluginMessage: { type: 'checkUnlock' } }, '*');
 
 buildBtn.addEventListener('click', function () {
   var courseId = courseSelect.value;
@@ -1723,11 +1725,14 @@ window.onmessage = function (event) {
     return;
   }
 
-  // Restore saved settings (colors, logo, fonts)
-  if (msg.type === 'savedSettings') {
-    if (msg.settings && msg.settings._unlocked && !DROPBOX_TOKEN) {
+  // Auto-unlock from saved state
+  if (msg.type === 'unlockStatus') {
+    if (msg.unlocked && !DROPBOX_TOKEN) {
       unlockPlugin();
     }
+  }
+  // Restore saved settings (colors, logo, fonts)
+  if (msg.type === 'savedSettings') {
     if (msg.settings) {
       var s = msg.settings;
       if (s.colors) {
@@ -1952,8 +1957,7 @@ function saveCurrentSettings() {
   }}, '*');
 }
 
-// Request saved settings on load
-parent.postMessage({ pluginMessage: { type: 'loadSettings' } }, '*');
+// Settings are loaded after unlock — see unlockPlugin()
 
 function resizeUI() {
   // Use a wrapper div to measure true content height independent of viewport

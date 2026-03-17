@@ -570,6 +570,14 @@ figma.ui.onmessage = async function (msg) {
       figma.ui.postMessage({ type: 'savedSettings', settings: settings || null });
     });
   }
+  if (msg.type === 'saveUnlock') {
+    figma.clientStorage.setAsync('pluginUnlocked', true);
+  }
+  if (msg.type === 'checkUnlock') {
+    figma.clientStorage.getAsync('pluginUnlocked').then(function (val) {
+      figma.ui.postMessage({ type: 'unlockStatus', unlocked: !!val });
+    });
+  }
   if (msg.type === 'resize') {
     figma.ui.resize(480, Math.min(msg.height, 900));
   }
