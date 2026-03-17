@@ -313,7 +313,18 @@
 </style>
 </head>
 <body>
-<div id="uiWrapper" style="display:flex;flex-direction:column;gap:10px;">
+
+<!-- Lock screen -->
+<div id="lockScreen" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:16px;padding:40px 20px;">
+  <div style="font-size:28px;opacity:0.3;margin-bottom:4px;">&#x2731;</div>
+  <div style="font-size:14px;font-weight:600;color:#fff;">Classroom Slide Builder</div>
+  <div style="font-size:11px;color:#888;text-align:center;line-height:1.5;">Enter the team password to continue</div>
+  <input type="password" id="lockPassword" placeholder="Password" style="width:200px;padding:8px 12px;background:#2a2a2a;border:1px solid #3a3a3a;border-radius:6px;color:#e0e0e0;font-size:13px;text-align:center;outline:none;" />
+  <button id="lockUnlockBtn" style="padding:6px 24px;background:#D4A853;color:#1e1e1e;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">Unlock</button>
+  <div id="lockError" style="font-size:11px;color:#c87070;display:none;">Incorrect password</div>
+</div>
+
+<div id="uiWrapper" style="display:none;flex-direction:column;gap:10px;">
 
 <h2>Classroom Slide Builder</h2>
 
@@ -625,8 +636,12 @@
 // DROPBOX DATA CONFIG
 // ============================================================
 
-// Dropbox API access token (full Dropbox access, personal account)
-var DROPBOX_TOKEN = 'sl.u.AGXu_irGCv95FEHrRIf8O-8vJTaM9ruRTKesHtaITTDYBaIkpEZglkLJaD3nF3aZaG7SrnboKXZKjxha5z4rFQ3l7U-O_X5aRJiBanxHYQmT3xXrgTAyxtsZbhht6GEsVhg1F7GRW45BD-g8wCReRjmAqA00e-TlV1NpPR4rfQoThEGfFwRndSgVm6YpVb5-xOSWnXpk1Itlfr4s1YtOqrSz3lmiBlvBs_4mwHzPYXb40HDBQUCN6v_qsFsHOo91OHBUeclfUqSeWtr5wdxZGt2DCZpGByADPmmGe-QDPFVZPcuJE4snCWg0o3cPYPjZ5_WgN-0iQ1rCV_sGpyXtc9aXAUEgmcvHtbq48EILZf53lv_VcH6fUqYEZhdosrYQHlydJEA1Z_dgQLwOjInUZ7wdvllEMah9UyG-9cxJ6H8dl6wGo7LM3zyCAVblm3NgLjwh76y8tT3hNEHAg0W1Aqb9e0nDG8dvDdXQZ18Bk8RLEjwbyq1SRvQ3-eUYluwW4tQBzRpL6SvE0mQhnEs68MG9oDV6Ndp1y6-mPUEeWGTqJ5p_tNji3fwrr3ZgLfijlBgww0xaoQtYsQkLfQScDbD-ztX7W7bAS1m968fLj4aRnXnuubNt2kOw_v-mSQeL9llB0bvOIdDaPVeAF9yJUhc-4EcJW9uJ4mxrJhtVCMb3xLP4drzl2xy7yAmrnOJJ6z_Wt6g2GlLQdoQ5WsS3k72xa5bqvbCHWEgK0yIdnkuc6ncbbx80JcffeRIAEHGq5xUFBjLLSM-8t_3Hy2yRvgMEhVfzZyRnVZ_DKOkZ_RF-zig1lqiv-gBNPlJO22XLUllNy3deg9YVp55veUtV1KKGsyHYL6XnMdPr6ztt55z_myVREs7oe6SxjTPHOEHNtFyraXt0N2M07w20YqefzTXsGikArPiQT5loSzhYFXgsxlU3McBYbpAuIT5PWqOM5txKe5dT2Eqbq2khGRDjXRRs6jV6W7zNzFJnSBiIZ7q9yKek1umQx1I0TAkuw_z3YusSIKWg9Dl1m3hX5NqYgcaF7Y8LQwjNV_4N1t6C3B1EATp7fz54NpwMdAlnxY0xde53S2Gr8SMwI23WdN4uSppKcZ1PAJM-UAff-jw1uLpQTW4ckPKaUPscth_0dSq6q_1GAa-l6YEX8Fuu9asUpwvYshmg3jg42JPVJCpG0yYB3QIj1FnsI4CBJ79rjuWulXlWK5DG_YKYQs-AwysFKfqDAWYQTA9xzO7iii7-MbZEWIkc05ud0f_9Hwy0_uKfv6vMDOXPNLDAkIxnr4rGZNn6wDEM51ITqOkqfbriDjSVVg';
+// Access token — base64 encoded, unlocked by password
+var _ENC_TOKEN = 'c2wudS5BR1h1X2lyR0N2OTVGRUhyUklmOE8tOHZKVGFNOXJ1UlRLZXNIdGFJVFREWUJhSWtwRVpnbGtMSmFEM25GM2FaYUc3U3JuYm9LWFpLanh' +
+'oYTV6NGRmUlEzbDdVLU9fWDVhUkppQmFueEhZUW1UM3hYcmdUQXl4dHNaYmhodDZHRXNWaGcxRjdHUlc0NUJEZ2c4d0NSZVJqbUFxQTAwZS1UbFYxTnBQUjRyZlFvVGhFR2ZGd1JuZFNnVm02WXBWYjUteE9TV25YcGsxSXRsZnI0czFZdE9xclN6M2xtaUJsdkJzXzRtd0h6UFlYYjQwSERCUVVDTjZ2X3FzRnNIT285MU9IQlVlY2xmVXFTZVd0cjV3ZHhaR3QyRENacEdCeUFEUG1tR2UtUURQRlZaUGN1SkU0c25DV2cwbzNjUFlQalo1X1dnTi0waVExckNWX3NHcHlYdGM5YVhBVUVnbWN2SHRicTQ4RUlMWmY1M2x2X1ZjSDZmVXFZRVpoZG9zcllRSGx5ZEpFQTFaX2RnUUx3T2pJblVaN3dkdmxsRU1haDlVeUctOWN4SjZIOGRsNndHbzdMTTN6eUNBVmJsbTNOZ0xqd2g3Nnk4dFQzaE5FSEFnMFcxQXFiOWUwbkRHOGR2RGRYUVoxOEJrOFJMRWp3YnlxMVNSdlEzLWVVWWx1d1c0dFFCenJwTDZTdkUwbVFobkVzNjhNRzlvRFY2TmRwMXk2LW1QVUVlV0dUcUo1cF90TmppM2Z3cnIzWmdMZmlqbEJnd3cwcGFvUXRZc1FrTGZRU2NEYkQtenRYN1c3YkFTMW05NjhmTGo0YVJuWG51dWJOdDJrT3dfdi1tU1FlTDlsbEIwYnZPSWRhUFZlQUY5eUpVaGMtNEVjSlc5dUo0bXhySmh0VkNNYjN4TFA0ZHJ6bDJ4eTd5QW1ybk9KSjZ6X1d0NmcyR2xMUWRvUTVXc1MzazcyeGE1YnF2YkNIV0VnSzB5SWRua3VjNm5jYmJ4ODBKY2ZmZVJJQUVIR3E1eFVGQmpMTFNNLTh0XzNIeTJ5UnZnTUVoVmZ6WnlSblZaX0RLT2taX1JGLXppZzFscWl2LWdCTlBsSk8yMlhMVWxsTnkzZGVnOVlWcDU1dmVVdFYxS0tHc3lIWUw2WG5NZFByNnp0dDU1el9teVZSRXM3b2U2U3hqVFBIT0VITnRGeXJhWHQwTjJNMDd3MjBZcWVmelRYc0dpa0FyUGlRVDVsb1N6aFlGWGdzeGxVM01jQlliYkF1SVQ1UFdxT001dHhLZTVkVDJFcWJxMmtoR1JEalhSUnM2alY2Vzd6TnpGSm5TQmlJWjdxOXlLZWsxdW1ReDFJMFRBa3V3X3ozWXVzU0lLV2c5RGwxbTNoWDVOcVlnY2FGN1k4TFF3ak5WXzROMXQ2QzNCMUVBVHA3Zno1NE5wd01kQWxueFkweGRlNTNTMkdyOFNNd0kyM1dkTjRVU3BwS2NaMVBBSk0tVUFmZi1qdzF1THBRVFE0Y2tQS2FVUHNjdGhfMGRTcTZxXzFHQWEtbDZZRVg4RnV1OWFzVXB3dllzaG1nM2pnNDJKUFZKQ3BHMHlZQjNRSWoxRm5zSTRDQko3OXJqdVd1bFhsV0s1REdfWUtZUXMtQXd5c0ZLZnFEQVdZUVRBOXh6TzdpaWk3LU1iWkVXSWtjMDV1ZDBmXzlId3kwX3VLZnY2dk1ET1hQTkxEQWtJeG5yNHJHWk5uNndERU01MUlUcU9rcWZicmlEalNWVmc=';
+
+var DROPBOX_TOKEN = '';
+var PLUGIN_PASSWORD = 'classroom-token';
 
 // Dropbox paths: data in app folder, Doc Watch for content team PDFs
 var DROPBOX_DATA_PATH = '/Apps/Figma Classroom Slide Builder';
@@ -1213,7 +1228,35 @@ courseSelect.addEventListener('change', function () {
   populateSessions();
 });
 sessionSelect.addEventListener('change', updatePreview);
-initCourseData();
+// ============================================================
+// PASSWORD GATE
+// ============================================================
+
+function unlockPlugin() {
+  DROPBOX_TOKEN = atob(_ENC_TOKEN);
+  document.getElementById('lockScreen').style.display = 'none';
+  document.getElementById('uiWrapper').style.display = 'flex';
+  initCourseData();
+}
+
+document.getElementById('lockUnlockBtn').addEventListener('click', function () {
+  var pw = document.getElementById('lockPassword').value.trim();
+  if (pw === PLUGIN_PASSWORD) {
+    // Save unlock state
+    parent.postMessage({ pluginMessage: { type: 'saveSettings', settings: { _unlocked: true } } }, '*');
+    unlockPlugin();
+  } else {
+    document.getElementById('lockError').style.display = 'block';
+    document.getElementById('lockPassword').value = '';
+  }
+});
+
+document.getElementById('lockPassword').addEventListener('keydown', function (e) {
+  if (e.key === 'Enter') document.getElementById('lockUnlockBtn').click();
+});
+
+// Check if previously unlocked
+parent.postMessage({ pluginMessage: { type: 'loadSettings' } }, '*');
 
 buildBtn.addEventListener('click', function () {
   var courseId = courseSelect.value;
@@ -1682,6 +1725,9 @@ window.onmessage = function (event) {
 
   // Restore saved settings (colors, logo, fonts)
   if (msg.type === 'savedSettings') {
+    if (msg.settings && msg.settings._unlocked && !DROPBOX_TOKEN) {
+      unlockPlugin();
+    }
     if (msg.settings) {
       var s = msg.settings;
       if (s.colors) {
