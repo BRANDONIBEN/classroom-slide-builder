@@ -1,0 +1,1934 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: Inter, -apple-system, sans-serif;
+    font-size: 13px;
+    background: #1e1e1e;
+    color: #e0e0e0;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  h2 {
+    font-size: 15px;
+    font-weight: 600;
+    color: #fff;
+    letter-spacing: -0.2px;
+  }
+
+  label {
+    font-size: 11px;
+    font-weight: 500;
+    color: #999;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: block;
+    margin-bottom: 6px;
+  }
+
+  .row {
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+  }
+
+  .field { flex: 1; }
+
+  select {
+    width: 100%;
+    background: #2a2a2a;
+    border: 1px solid #3a3a3a;
+    border-radius: 6px;
+    color: #e0e0e0;
+    font-size: 13px;
+    padding: 8px 10px;
+    outline: none;
+    cursor: pointer;
+  }
+
+  select:focus { border-color: #555; }
+
+  .status {
+    font-size: 12px;
+    color: #888;
+    min-height: 18px;
+    line-height: 1.4;
+  }
+
+  .status.error { color: #ff6b6b; }
+  .status.success { color: #6bcb77; }
+
+  .actions {
+    display: flex;
+    gap: 8px;
+    margin-top: auto;
+  }
+
+  button {
+    flex: 1;
+    padding: 10px;
+    border-radius: 6px;
+    border: none;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+
+  button:hover { opacity: 0.85; }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  #buildBtn {
+    background: #D4A853;
+    color: #1a1400;
+  }
+
+  #cancelBtn {
+    background: #333;
+    color: #aaa;
+    flex: 0 0 80px;
+  }
+
+  .preview {
+    background: #2a2a2a;
+    border: 1px solid #3a3a3a;
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-size: 11px;
+    color: #888;
+    min-height: 52px;
+    line-height: 1.6;
+  }
+
+  .tag {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: 600;
+    margin-right: 4px;
+    text-transform: uppercase;
+  }
+  .tag.statement { background: #3a3a2a; color: #c8b870; }
+  .tag.quote     { background: #2a3a3a; color: #70b8c8; }
+  .tag.scripture { background: #2a3a2a; color: #70c870; }
+  .tag.list      { background: #3a2a3a; color: #c870c8; }
+  .tag.body      { background: #2a2a3a; color: #7070c8; }
+  .tag.graphic   { background: #2a3a2a; color: #90c890; }
+  .tag.chart     { background: #3a2a2a; color: #e24337; }
+  .tag.table     { background: #2a2a3a; color: #c8a870; }
+
+  .colors-section {
+    background: #2a2a2a;
+    border: 1px solid #3a3a3a;
+    border-radius: 6px;
+    padding: 10px 12px;
+  }
+
+  .colors-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .colors-toggle span {
+    font-size: 11px;
+    font-weight: 500;
+    color: #999;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .colors-toggle .arrow {
+    font-size: 10px;
+    color: #666;
+    transition: transform 0.15s;
+  }
+
+  .colors-toggle .arrow.open { transform: rotate(90deg); }
+
+  .colors-grid {
+    display: none;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .colors-grid.open { display: grid; }
+
+  .color-field label {
+    font-size: 10px;
+    margin-bottom: 4px;
+  }
+
+  .color-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .color-row input[type="color"] {
+    width: 28px;
+    height: 28px;
+    border: 1px solid #3a3a3a;
+    border-radius: 4px;
+    background: none;
+    cursor: pointer;
+    padding: 0;
+  }
+
+  .color-row input[type="text"] {
+    flex: 1;
+    background: #1e1e1e;
+    border: 1px solid #3a3a3a;
+    border-radius: 4px;
+    color: #e0e0e0;
+    font-size: 12px;
+    font-family: monospace;
+    padding: 5px 6px;
+    width: 0;
+  }
+
+  .color-row input[type="text"]:focus { border-color: #555; outline: none; }
+
+  .font-section {
+    background: #2a2a2a;
+    border: 1px solid #3a3a3a;
+    border-radius: 6px;
+    padding: 10px 12px;
+  }
+
+  .font-grid {
+    display: none;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .font-grid.open { display: flex; }
+
+  .font-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .font-row .font-label {
+    width: 80px;
+    font-size: 10px;
+    font-weight: 500;
+    color: #999;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    flex-shrink: 0;
+  }
+
+  .font-row select {
+    flex: 1;
+    padding: 6px 8px;
+    font-size: 12px;
+  }
+
+  /* Tab bar */
+  .tab-bar { display: flex; gap: 4px; margin-bottom: 4px; }
+  .tab {
+    flex: 1; padding: 7px 0; font-size: 11px; font-weight: 600;
+    background: #2a2a2a; color: #666; border: 1px solid #3a3a3a;
+    border-radius: 6px; cursor: pointer; transition: all 0.15s; text-align: center;
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .tab:hover { color: #aaa; background: #333; }
+  .tab.active { color: #D4A853; background: #2a2a1a; border-color: #4a4a2a; }
+
+  /* Panels — only .active is visible */
+  .panel { display: none; flex-direction: column; gap: 10px; }
+  .panel.active { display: flex; }
+
+  .edit-field label { margin-bottom: 4px; }
+
+  .edit-field textarea, .edit-field input[type="text"] {
+    width: 100%;
+    background: #1e1e1e;
+    border: 1px solid #3a3a3a;
+    border-radius: 6px;
+    color: #e0e0e0;
+    font-size: 13px;
+    padding: 8px 10px;
+    font-family: Inter, -apple-system, sans-serif;
+    outline: none;
+    resize: vertical;
+  }
+
+  .edit-field textarea { min-height: 80px; line-height: 1.5; }
+  .edit-field textarea:focus, .edit-field input[type="text"]:focus { border-color: #555; }
+
+  .edit-type-row {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .edit-type-row button {
+    flex: 0 0 auto;
+    padding: 5px 10px;
+    font-size: 11px;
+    border-radius: 4px;
+    background: #333;
+    color: #999;
+    border: 1px solid #3a3a3a;
+    cursor: pointer;
+  }
+
+  .edit-type-row button.selected {
+    background: #D4A853;
+    color: #1a1400;
+    border-color: #D4A853;
+  }
+
+  .logo-section {
+    background: #2a2a2a;
+    border: 1px solid #3a3a3a;
+    border-radius: 6px;
+    padding: 10px 12px;
+  }
+
+  .logo-section label {
+    font-size: 11px;
+    font-weight: 500;
+    color: #999;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+  }
+
+</style>
+</head>
+<body>
+<div id="uiWrapper" style="display:flex;flex-direction:column;gap:10px;">
+
+<h2>Classroom Slide Builder</h2>
+
+<div class="tab-bar">
+  <button class="tab active" id="tabBuild" data-tab="build">Build</button>
+  <button class="tab" id="tabEdit" data-tab="edit">Edit Slide</button>
+</div>
+
+<!-- EDIT SLIDE PANEL -->
+<div id="editPanel" class="panel">
+  <div id="editNoSelection" style="text-align:center;padding:40px 20px;color:#888;font-size:13px;line-height:1.6;">
+    <div style="font-size:32px;margin-bottom:12px;opacity:0.3;">&#9634;</div>
+    <div>Select a slide frame on the canvas,<br>then switch to this tab to edit it.</div>
+  </div>
+  <div id="editContent" style="display:none;flex-direction:column;gap:10px;">
+  <div style="background:#2a2a2a;border:1px solid #3a3a3a;border-radius:6px;padding:10px 12px;">
+    <div style="font-size:11px;color:#D4A853;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Editing Selected Slide</div>
+    <div id="editSlideInfo" style="font-size:12px;color:#999;"></div>
+  </div>
+
+  <div class="edit-field">
+    <label>Type</label>
+    <div class="edit-type-row" id="editTypeRow">
+      <button data-type="body">Body</button>
+      <button data-type="list">List</button>
+      <button data-type="quote">Quote</button>
+      <button data-type="scripture">Scripture</button>
+      <button data-type="statement">Statement</button>
+      <button data-type="graphic">Graphic</button>
+      <button data-type="chart">Chart</button>
+      <button data-type="table">Table</button>
+    </div>
+  </div>
+
+  <div class="edit-field">
+    <label>Title</label>
+    <input type="text" id="editTitle" placeholder="Slide title...">
+  </div>
+
+  <div class="edit-field">
+    <label>Body</label>
+    <textarea id="editBody" placeholder="Slide body content..." rows="5"></textarea>
+  </div>
+
+  <div style="display:flex;gap:8px;">
+    <div class="edit-field" style="flex:1;">
+      <label>Footer Left</label>
+      <input type="text" id="editFooterLeft" placeholder="Course name..." style="font-size:12px;padding:6px 8px;">
+    </div>
+    <div class="edit-field" style="flex:1;">
+      <label>Footer Right</label>
+      <input type="text" id="editFooterRight" placeholder="Session label..." style="font-size:12px;padding:6px 8px;">
+    </div>
+  </div>
+
+  <div id="editOverrideNote" style="display:none;font-size:11px;color:#D4A853;background:#2a2a1a;border:1px solid #3a3a2a;border-radius:4px;padding:6px 10px;">
+    This slide has a saved override.
+  </div>
+
+  <div id="editVersions" style="display:none;background:#2a2a2a;border:1px solid #3a3a3a;border-radius:6px;padding:8px 12px;">
+    <label style="margin-bottom:4px;">Version History</label>
+    <div id="editVersionList" style="display:flex;flex-direction:column;gap:4px;"></div>
+  </div>
+
+  <div style="display:flex;gap:6px;flex-wrap:wrap;">
+    <button id="commitBtnEdit" style="flex:1;padding:6px 8px;font-size:11px;background:#2a3a2a;color:#6bcb77;border:1px solid #3a4a3a;border-radius:4px;cursor:pointer;">Commit Manual Edits</button>
+    <button id="insertLeftBtn" style="flex:0 0 auto;padding:6px 10px;font-size:11px;background:#2a2a3a;color:#7070c8;border:1px solid #3a3a4a;border-radius:4px;cursor:pointer;">+ Left</button>
+    <button id="insertRightBtn" style="flex:0 0 auto;padding:6px 10px;font-size:11px;background:#2a2a3a;color:#7070c8;border:1px solid #3a3a4a;border-radius:4px;cursor:pointer;">+ Right</button>
+    <button id="deleteSlideBtn" style="flex:0 0 auto;padding:6px 10px;font-size:11px;background:#3a2a2a;color:#c87070;border:1px solid #4a3a3a;border-radius:4px;cursor:pointer;">Delete</button>
+  </div>
+
+  <div class="status" id="editStatus"></div>
+
+  <div class="actions">
+    <button id="editCancelBtn" style="background:#333;color:#aaa;flex:0 0 80px;">Cancel</button>
+    <button id="editRevertBtn" style="background:#333;color:#c87070;flex:0 0 auto;padding:10px 14px;display:none;">Revert</button>
+    <button id="editUpdateBtn" style="background:#D4A853;color:#1a1400;">Update Slide</button>
+  </div>
+  <!-- Trash section -->
+  </div><!-- /editContent -->
+
+  <!-- Trash section — always visible on edit tab when items exist -->
+  <div id="trashSection" style="display:none;background:#2a2a2a;border:1px solid #3a3a3a;border-radius:6px;padding:8px 12px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+      <span style="font-size:11px;font-weight:500;color:#999;text-transform:uppercase;letter-spacing:0.5px;">Trash</span>
+      <button id="emptyTrashBtn" style="padding:2px 8px;font-size:10px;background:#3a2a2a;color:#c87070;border:1px solid #4a3a3a;border-radius:3px;cursor:pointer;">Empty</button>
+    </div>
+    <div id="trashList" style="display:flex;flex-direction:column;gap:4px;"></div>
+  </div>
+</div>
+
+<!-- BUILD PANEL -->
+<div id="buildPanel" class="panel active">
+<div class="row">
+  <div class="field">
+    <label>Course</label>
+    <select id="courseSelect">
+      <option value="et">Essential Theology</option>
+      <option value="sn">Scripture Narrative</option>
+      <option value="bf">Biblical Finances</option>
+    </select>
+  </div>
+</div>
+
+<div class="row">
+  <div class="field">
+    <label>Class</label>
+    <select id="sessionSelect"></select>
+  </div>
+</div>
+
+<div class="colors-section">
+  <div class="colors-toggle" id="colorsToggle">
+    <span>Slide Colors</span>
+    <span class="arrow" id="colorsArrow">&#9654;</span>
+  </div>
+  <div class="colors-grid" id="colorsGrid">
+    <div class="color-field">
+      <label>Background</label>
+      <div class="color-row">
+        <input type="color" id="colorBg" value="#7B7669">
+        <input type="text" id="hexBg" value="#7B7669" maxlength="7">
+      </div>
+    </div>
+    <div class="color-field">
+      <label>Text</label>
+      <div class="color-row">
+        <input type="color" id="colorText" value="#E7E3DB">
+        <input type="text" id="hexText" value="#E7E3DB" maxlength="7">
+      </div>
+    </div>
+    <div class="color-field">
+      <label>Footer (50% opacity)</label>
+      <div class="color-row">
+        <input type="color" id="colorFooter" value="#E7E3DB">
+        <input type="text" id="hexFooter" value="#E7E3DB" maxlength="7">
+      </div>
+    </div>
+    <div class="color-field">
+      <label>Attribution (75% opacity)</label>
+      <div class="color-row">
+        <input type="color" id="colorAttr" value="#E7E3DB">
+        <input type="text" id="hexAttr" value="#E7E3DB" maxlength="7">
+      </div>
+    </div>
+    <div class="color-field">
+      <label>Chart Marker</label>
+      <div class="color-row">
+        <input type="color" id="colorMarker" value="#E24337">
+        <input type="text" id="hexMarker" value="#E24337" maxlength="7">
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="logo-section">
+  <div class="colors-toggle" id="logoToggle">
+    <span>Cover Logo</span>
+    <span class="arrow" id="logoArrow">&#9654;</span>
+  </div>
+  <div class="colors-grid" id="logoGrid" style="grid-template-columns: 1fr;">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <div id="logoPreviewBg" style="width:50px;height:50px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:#E7E3DB;flex-shrink:0;">
+        <svg id="logoPreview" width="30" height="30" viewBox="0 0 55 54" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M27.0541 32.8376C23.5515 32.8376 20.0567 33.7423 16.9253 35.567L5.25773 42.3325L8.56701 47.3969L21.9433 37.6624L24.317 34.5773H24.6959L24.2242 53.2113H29.8995L29.4278 34.5773H29.8067L32.1804 37.6624L45.5567 47.3969L48.866 42.3325L37.1985 35.567C34.0593 33.7577 30.5644 32.8376 27.0619 32.8376H27.0541Z" fill="#7B7669"/>
+          <path d="M39.0155 25.7474L35.1727 25.2294L34.9794 24.8969L51.2938 15.982L48.4562 11.049L32.6134 20.7835L32.4201 20.451L33.8969 16.8479L35.5979 0.347938L29.5902 0V13.5309C29.5902 17.1649 30.5567 20.6598 32.3119 23.7062C34.0593 26.7526 36.6031 29.3351 39.7268 31.1521L51.3943 37.9175L54.1005 32.5129L39.0155 25.7474Z" fill="#7B7669"/>
+          <path d="M21.8041 23.7062C23.5515 20.6598 24.5258 17.1649 24.5258 13.5309V7.15256e-07L18.5103 0.347939L20.2113 16.8479L21.6804 20.451L21.4871 20.7835L5.65206 11.049L2.81443 15.982L19.1289 24.8969L18.9356 25.2294L15.0851 25.7474L0 32.5129L2.70619 37.9175L14.3737 31.1521C17.5129 29.3428 20.049 26.7526 21.7887 23.7062H21.8119H21.8041Z" fill="#7B7669"/>
+        </svg>
+      </div>
+      <div style="flex:1;display:flex;flex-direction:column;gap:6px;">
+        <div class="color-field">
+          <label>Logo Color</label>
+          <div class="color-row">
+            <input type="color" id="colorLogo" value="#7B7669">
+            <input type="text" id="hexLogo" value="#7B7669" maxlength="7">
+          </div>
+        </div>
+        <div class="color-field">
+          <label>Logo Background</label>
+          <div class="color-row">
+            <input type="color" id="colorLogoBg" value="#E7E3DB">
+            <input type="text" id="hexLogoBg" value="#E7E3DB" maxlength="7">
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;padding-top:14px;">
+        <input type="checkbox" id="logoEnabled" checked style="cursor:pointer;">
+        <label for="logoEnabled" style="margin:0;cursor:pointer;text-transform:none;font-size:11px;">Show</label>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="font-section">
+  <div class="colors-toggle" id="fontToggle">
+    <span>Fonts</span>
+    <span class="arrow" id="fontArrow">&#9654;</span>
+  </div>
+  <div class="font-grid" id="fontGrid">
+    <div class="font-row">
+      <span class="font-label">Title</span>
+      <select id="fontTitle">
+        <option value="Signifier|Medium" selected>Signifier Medium</option>
+        <option value="Signifier|Regular">Signifier Regular</option>
+        <option value="Untitled Sans|Medium">Untitled Sans Medium</option>
+        <option value="Untitled Sans|Bold">Untitled Sans Bold</option>
+        <option value="Inter|Medium">Inter Medium</option>
+        <option value="Inter|Bold">Inter Bold</option>
+      </select>
+    </div>
+    <div class="font-row">
+      <span class="font-label">Body</span>
+      <select id="fontBody">
+        <option value="Signifier|Regular" selected>Signifier Regular</option>
+        <option value="Signifier|Medium">Signifier Medium</option>
+        <option value="Untitled Sans|Regular">Untitled Sans Regular</option>
+        <option value="Inter|Regular">Inter Regular</option>
+      </select>
+    </div>
+    <div class="font-row">
+      <span class="font-label">Emphasis</span>
+      <select id="fontEmphasis">
+        <option value="Signifier|MediumItalic" selected>Signifier Medium Italic</option>
+        <option value="Signifier|RegularItalic">Signifier Regular Italic</option>
+        <option value="Inter|Medium Italic">Inter Medium Italic</option>
+        <option value="Inter|Italic">Inter Italic</option>
+      </select>
+    </div>
+    <div class="font-row">
+      <span class="font-label">Attribution</span>
+      <select id="fontAttribution">
+        <option value="Signifier|RegularItalic" selected>Signifier Italic</option>
+        <option value="Signifier|MediumItalic">Signifier Medium Italic</option>
+        <option value="Inter|Italic">Inter Italic</option>
+        <option value="Inter|Medium Italic">Inter Medium Italic</option>
+      </select>
+    </div>
+    <div class="font-row">
+      <span class="font-label">Labels</span>
+      <select id="fontLabels">
+        <option value="Untitled Sans|Regular" selected>Untitled Sans Regular</option>
+        <option value="Untitled Sans|Medium">Untitled Sans Medium</option>
+        <option value="Inter|Regular">Inter Regular</option>
+        <option value="Inter|Medium">Inter Medium</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<div class="field">
+  <label>Preview</label>
+  <div class="preview" id="preview">Select a course and class to see slide breakdown...</div>
+</div>
+
+<div style="background:#2a2a2a;border:1px solid #3a3a3a;border-radius:6px;padding:10px 12px;">
+  <label style="margin-bottom:6px;">Selected Frame</label>
+  <div style="display:flex;gap:8px;">
+    <button id="commitBtnBuild" style="flex:1;padding:8px;font-size:12px;background:#2a3a2a;color:#6bcb77;border:1px solid #3a4a3a;border-radius:4px;cursor:pointer;">Commit Design</button>
+    <button id="revertBtnBuild" style="flex:1;padding:8px;font-size:12px;background:#3a2a2a;color:#c87070;border:1px solid #4a3a3a;border-radius:4px;cursor:pointer;">Revert to Default</button>
+  </div>
+  <div style="font-size:10px;color:#666;margin-top:6px;line-height:1.4;">
+    Select a slide frame, then <b>Commit</b> to save manual edits or <b>Revert</b> to clear overrides.
+  </div>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:6px;padding:4px 0;">
+  <div style="display:flex;align-items:center;gap:8px;">
+    <input type="checkbox" id="pageNumbersCheck" style="accent-color:#D4A853;width:14px;height:14px;cursor:pointer;">
+    <label for="pageNumbersCheck" style="margin:0;cursor:pointer;font-size:12px;color:#ccc;text-transform:none;letter-spacing:0;">Include page numbers</label>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px;">
+    <input type="checkbox" id="printViewCheck" style="accent-color:#D4A853;width:14px;height:14px;cursor:pointer;">
+    <label for="printViewCheck" style="margin:0;cursor:pointer;font-size:12px;color:#ccc;text-transform:none;letter-spacing:0;">Export Print View (PDF)</label>
+  </div>
+</div>
+
+<div id="chartLocators" style="display:none;background:#2a2a2a;border:1px solid #3a3a3a;border-radius:6px;padding:8px 12px;">
+  <label style="margin-bottom:4px;">Charts on this page</label>
+  <div id="chartLocatorList" style="display:flex;flex-direction:column;gap:4px;"></div>
+</div>
+
+<div id="overrideBadge" style="display:none;font-size:11px;color:#D4A853;background:#2a2a1a;border:1px solid #3a3a2a;border-radius:4px;padding:6px 10px;align-items:center;justify-content:space-between;">
+  <span id="overrideBadgeText"></span>
+  <button id="clearAllOverridesBtn" style="flex:0 0 auto;padding:3px 8px;font-size:10px;background:#333;color:#c87070;border:1px solid #3a3a3a;border-radius:3px;cursor:pointer;">Clear All</button>
+</div>
+
+<div id="printCleanupRow" style="display:none;align-items:center;justify-content:space-between;background:#1e2d1e;border:1px solid #2d4a2d;border-radius:6px;padding:10px 14px;margin:6px 0;">
+  <span style="font-size:11px;color:#6bcb77;line-height:1.4;">Print pages ready<br><span style="color:#888;font-size:10px;">File › Export Frames to PDF</span></span>
+  <button id="cleanPrintBtn" style="flex:0 0 auto;padding:5px 12px;font-size:11px;background:#c87070;color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:500;">Remove</button>
+</div>
+
+<div class="status" id="status"></div>
+
+<div class="actions">
+  <button id="cancelBtn">Cancel</button>
+  <button id="buildBtn" disabled>Build Slides</button>
+</div>
+
+<button id="printCurrentPageBtn" style="width:100%;padding:8px;border-radius:6px;border:1px solid #3a3a3a;font-size:12px;background:#2a2a2a;color:#aaa;cursor:pointer;">Generate Print View from Current Page</button>
+
+</div><!-- /buildPanel -->
+
+</div><!-- /uiWrapper -->
+
+<script>var FALLBACK_COURSE_TEXT = {};</script>
+<script src="fallback-data.js" onerror="console.log('No fallback-data.js — using remote only')"></script>
+<script>
+// ============================================================
+// DROPBOX DATA CONFIG
+// ============================================================
+
+// Dropbox API access token (full Dropbox access, personal account)
+var DROPBOX_TOKEN = 'sl.u.AGXu_irGCv95FEHrRIf8O-8vJTaM9ruRTKesHtaITTDYBaIkpEZglkLJaD3nF3aZaG7SrnboKXZKjxha5z4rFQ3l7U-O_X5aRJiBanxHYQmT3xXrgTAyxtsZbhht6GEsVhg1F7GRW45BD-g8wCReRjmAqA00e-TlV1NpPR4rfQoThEGfFwRndSgVm6YpVb5-xOSWnXpk1Itlfr4s1YtOqrSz3lmiBlvBs_4mwHzPYXb40HDBQUCN6v_qsFsHOo91OHBUeclfUqSeWtr5wdxZGt2DCZpGByADPmmGe-QDPFVZPcuJE4snCWg0o3cPYPjZ5_WgN-0iQ1rCV_sGpyXtc9aXAUEgmcvHtbq48EILZf53lv_VcH6fUqYEZhdosrYQHlydJEA1Z_dgQLwOjInUZ7wdvllEMah9UyG-9cxJ6H8dl6wGo7LM3zyCAVblm3NgLjwh76y8tT3hNEHAg0W1Aqb9e0nDG8dvDdXQZ18Bk8RLEjwbyq1SRvQ3-eUYluwW4tQBzRpL6SvE0mQhnEs68MG9oDV6Ndp1y6-mPUEeWGTqJ5p_tNji3fwrr3ZgLfijlBgww0xaoQtYsQkLfQScDbD-ztX7W7bAS1m968fLj4aRnXnuubNt2kOw_v-mSQeL9llB0bvOIdDaPVeAF9yJUhc-4EcJW9uJ4mxrJhtVCMb3xLP4drzl2xy7yAmrnOJJ6z_Wt6g2GlLQdoQ5WsS3k72xa5bqvbCHWEgK0yIdnkuc6ncbbx80JcffeRIAEHGq5xUFBjLLSM-8t_3Hy2yRvgMEhVfzZyRnVZ_DKOkZ_RF-zig1lqiv-gBNPlJO22XLUllNy3deg9YVp55veUtV1KKGsyHYL6XnMdPr6ztt55z_myVREs7oe6SxjTPHOEHNtFyraXt0N2M07w20YqefzTXsGikArPiQT5loSzhYFXgsxlU3McBYbpAuIT5PWqOM5txKe5dT2Eqbq2khGRDjXRRs6jV6W7zNzFJnSBiIZ7q9yKek1umQx1I0TAkuw_z3YusSIKWg9Dl1m3hX5NqYgcaF7Y8LQwjNV_4N1t6C3B1EATp7fz54NpwMdAlnxY0xde53S2Gr8SMwI23WdN4uSppKcZ1PAJM-UAff-jw1uLpQTW4ckPKaUPscth_0dSq6q_1GAa-l6YEX8Fuu9asUpwvYshmg3jg42JPVJCpG0yYB3QIj1FnsI4CBJ79rjuWulXlWK5DG_YKYQs-AwysFKfqDAWYQTA9xzO7iii7-MbZEWIkc05ud0f_9Hwy0_uKfv6vMDOXPNLDAkIxnr4rGZNn6wDEM51ITqOkqfbriDjSVVg';
+
+// Dropbox paths: data in app folder, Doc Watch for content team PDFs
+var DROPBOX_DATA_PATH = '/Apps/Figma Classroom Slide Builder';
+var DROPBOX_DOC_WATCH_PATH = '/Passion Equip Shared/Content/07 - Classroom/00 Doc Watch';
+
+// Dropbox folder link for the empty-state / Doc Watch message
+var DROPBOX_FOLDER_URL = 'https://www.dropbox.com/scl/fo/aufcwbovza8thlzw6wt0v/AArmk0suksBH8HxvuCXRQO4?rlkey=pnoymg88rds994saotj238w65&st=yb3rp47f&dl=0';
+
+var COURSE_TEXT = {};
+var COURSES = {};
+var REMOTE_MODE = false;
+
+// Download a file from the Dropbox app folder by path
+async function dropboxDownload(filePath) {
+  var resp = await fetch('https://content.dropboxapi.com/2/files/download', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer ' + DROPBOX_TOKEN,
+      'Dropbox-API-Arg': JSON.stringify({ path: filePath })
+    }
+  });
+  if (!resp.ok) throw new Error('Dropbox download failed: ' + resp.status);
+  return resp;
+}
+
+async function loadRemoteIndex() {
+  if (!DROPBOX_TOKEN) return false;
+  try {
+    var resp = await dropboxDownload(DROPBOX_DOC_WATCH_PATH + '/index.json');
+    var index = await resp.json();
+    COURSES = {};
+    for (var i = 0; i < index.courses.length; i++) {
+      var c = index.courses[i];
+      COURSES[c.id] = { name: c.name, sessions: c.sessions, file: c.file };
+    }
+    REMOTE_MODE = true;
+    return true;
+  } catch (e) {
+    console.warn('Dropbox index load failed:', e);
+    return false;
+  }
+}
+
+async function loadRemoteCourseText(courseId) {
+  if (COURSE_TEXT[courseId]) return COURSE_TEXT[courseId];
+  var course = COURSES[courseId];
+  if (!course || !course.file) return '';
+  try {
+    var resp = await dropboxDownload(DROPBOX_DOC_WATCH_PATH + '/' + course.file);
+    var text = await resp.json();
+    COURSE_TEXT[courseId] = text;
+    return text;
+  } catch (e) {
+    console.warn('Failed to load course text for ' + courseId + ':', e);
+    return '';
+  }
+}
+
+// Initialize: try remote first, fall back to embedded
+async function initCourseData() {
+  var loaded = await loadRemoteIndex();
+  if (!loaded) {
+    // Use embedded fallback
+    useFallbackData();
+  }
+  // Populate UI
+  var courseSelect = document.getElementById('courseSelect');
+  courseSelect.innerHTML = '';
+  var courseIds = Object.keys(COURSES);
+  if (courseIds.length === 0) {
+    // No courses available — show empty state
+    showNoCourses();
+    return;
+  }
+  for (var i = 0; i < courseIds.length; i++) {
+    var opt = document.createElement('option');
+    opt.value = courseIds[i];
+    opt.textContent = COURSES[courseIds[i]].name;
+    courseSelect.appendChild(opt);
+  }
+  // Load the first course text
+  if (REMOTE_MODE && courseIds.length > 0) {
+    await loadRemoteCourseText(courseIds[0]);
+  }
+  populateSessions();
+}
+
+function showNoCourses() {
+  var panel = document.getElementById('buildPanel');
+  var msg = document.getElementById('noCoursesMsg');
+  if (!msg) {
+    msg = document.createElement('div');
+    msg.id = 'noCoursesMsg';
+    msg.style.cssText = 'text-align:center;padding:32px 16px;color:#888;font-size:13px;line-height:1.6;';
+    msg.innerHTML = '<div style="font-size:20px;margin-bottom:12px;opacity:0.4;">No courses found</div>'
+      + '<p style="margin-bottom:16px;">Drop course PDFs into the shared Dropbox folder, then run the conversion script to make them available here.</p>'
+      + (DROPBOX_FOLDER_URL
+        ? '<a href="' + DROPBOX_FOLDER_URL + '" target="_blank" style="display:inline-block;padding:8px 16px;background:#2a2a2a;border:1px solid #3a3a3a;border-radius:6px;color:#D4A853;text-decoration:none;font-size:12px;">Open Dropbox Folder</a>'
+        : '<p style="color:#666;font-size:11px;">Configure DROPBOX_FOLDER_URL in the plugin to link here.</p>');
+    panel.insertBefore(msg, panel.firstChild);
+  }
+  msg.style.display = 'block';
+  document.getElementById('buildBtn').disabled = true;
+}
+
+function useFallbackData() {
+  // Load embedded text data from fallback-data.js (generated by scripts/embed-fallback.js)
+  if (typeof FALLBACK_COURSE_TEXT !== 'undefined') {
+    COURSE_TEXT = FALLBACK_COURSE_TEXT;
+  }
+  COURSES = {
+    et: {
+      name: 'Essential Theology',
+      sessions: [
+        { num: 1,  label: 'Introduction to Essential Theology' },
+        { num: 2,  label: 'The Trinity' },
+        { num: 3,  label: 'Attributes of God' },
+        { num: 4,  label: 'Bibliology' },
+        { num: 5,  label: 'Humanity + Sin' },
+        { num: 6,  label: 'Jesus, Part 1' },
+        { num: 7,  label: 'Jesus, Part 2' },
+        { num: 8,  label: 'Salvation, Part 1' },
+        { num: 9,  label: 'Salvation, Part 2' },
+        { num: 10, label: 'Sanctification' },
+        { num: 11, label: 'The Church' },
+        { num: 12, label: 'Eschatology' }
+      ]
+    },
+    sn: {
+      name: 'Scripture Narrative',
+      sessions: [
+        { num: 1,  label: 'Set Up + Structure of Scripture' },
+        { num: 2,  label: 'Creation + Fall' },
+        { num: 3,  label: 'Covenants + Law' },
+        { num: 4,  label: 'Covenant Consequences, Part 1' },
+        { num: 5,  label: 'Covenant Consequences, Part 2' },
+        { num: 6,  label: 'Covenant Worship' },
+        { num: 7,  label: 'United and Divided Kingdom, Part 1' },
+        { num: 8,  label: 'United and Divided Kingdom, Part 2' },
+        { num: 9,  label: 'Major + Minor Prophets' },
+        { num: 10, label: 'A Return + a New Covenant' },
+        { num: 11, label: 'Gospels Part 1' },
+        { num: 12, label: 'Gospels Part 2' },
+        { num: 13, label: 'Acts' },
+        { num: 14, label: 'Pauline Epistles' },
+        { num: 15, label: 'Hebrews' },
+        { num: 16, label: 'Revelation' },
+        { num: 17, label: 'The Whole Story' }
+      ]
+    },
+    bf: {
+      name: 'Biblical Finances',
+      sessions: [
+        { num: 1, label: 'Introduction + The Reality of Wealth' },
+        { num: 2, label: 'The Mindset of Biblical Finances' },
+        { num: 3, label: 'Serving, Spending, Debt' },
+        { num: 4, label: 'Step #1 - Giving Generously' },
+        { num: 5, label: 'Step #2 - Save Wisely' },
+        { num: 6, label: 'Needs, Wants, and Budgets' },
+        { num: 7, label: 'Step #3 - Living Contentedly' },
+        { num: 8, label: 'Scriptural Examples' },
+        { num: 9, label: 'Living for the Line & The Love of Money' }
+      ]
+    }
+  };
+}
+
+// ============================================================
+// PARSER
+// ============================================================
+
+function parseSlides(lines, courseId) {
+  var results = [];
+  var sessionNum = 0;
+  var sessionName = '';
+  var currentSlide = null;
+  var bodyLines = [];
+
+  function stripTimecode(s) {
+    return s.replace(/\s*\([\d:]*\)\s*$/, '').trim();
+  }
+
+  function isScripture(s) {
+    return /^[123]?\s*(Gen|Exod|Lev|Num|Deut|Josh|Judg|Ruth|Sam|Kgs|Chr|Ezra|Neh|Esth|Job|Ps|Prov|Eccl|Song|Isa|Jer|Lam|Ezek|Dan|Hos|Joel|Amos|Obad|Jon|Mic|Nah|Hab|Zeph|Hag|Zech|Mal|Matt|Mark|Luke|John|Acts|Rom|Cor|Gal|Eph|Phil|Col|Thess|Tim|Titus|Phlm|Heb|Jas|Pet|Jude|Rev|Genesis|Exodus|Matthew|Romans|Psalms?|Proverbs|Philippians|Colossians|Ephesians|Hebrews|Revelation|Corinthians|Galatians|Thessalonians|Timothy|Peter|Chronicles|Samuel|Kings|Numbers|Deuteronomy|Joshua|Judges|Nehemiah|Esther|Ecclesiastes|Isaiah|Jeremiah|Lamentations|Ezekiel|Daniel|Hosea|Amos|Obadiah|Jonah|Micah|Nahum|Habakkuk|Zephaniah|Haggai|Zechariah|Malachi)\s*\.?\s*\d/i.test(s);
+  }
+
+  function detectType(title, body) {
+    var t = (title || '').trim();
+    var b = body.trim();
+    // Title/holding slide — "Static Graphic" or "Static Slide"
+    if (/^Static\s*(Graphic|Slide)/i.test(t)) return 'graphic';
+    // Chart/illustration placeholder
+    if (/^CHART/i.test(t) || /^CHART/i.test(b)) return 'chart';
+    // Table/comparison slide — look for header pattern + verse references as data
+    var bLines = b.split('\n').map(function(l) { return l.trim(); }).filter(function(l) { return l.length > 0; });
+    if (bLines.length >= 3) {
+      var hasVerseRefs = bLines.filter(function(l) { return /\d+:\d+/.test(l); }).length;
+      // Check if any line looks like a comparison header (2+ capitalized word groups)
+      var headerLike = false;
+      for (var hi = 0; hi < Math.min(3, bLines.length); hi++) {
+        // Match patterns like "The Beginning Genesis The End Revelation" or "Column A  Column B"
+        if (/\b[A-Z][a-z]+\b.*\b[A-Z][a-z]+\b.*\b[A-Z][a-z]+\b.*\b[A-Z][a-z]+\b/.test(bLines[hi])) {
+          headerLike = true; break;
+        }
+      }
+      if (hasVerseRefs >= 2 && headerLike) return 'table';
+    }
+    // Scripture reference as title with no body — treat as scripture slide
+    if (isScripture(t) && b.length === 0) return 'scripture';
+    if (b.length === 0) return 'statement';
+    // Scripture ref as title with body content — keep normal type, builders handle the ref
+    if (isScripture(t)) {
+      if (/^[\u201C\u2018"]/.test(b)) return 'quote';
+      if (/^(\d+\.|[●•\-\*])/.test(b)) return 'list';
+      return 'body';
+    }
+    if (/^[\u201C\u2018"]/.test(b)) return 'quote';
+    if (/^(\d+\.|[●•\-\*])/.test(b)) return 'list';
+    return 'body';
+  }
+
+  function save() {
+    if (!currentSlide) return;
+    var body = bodyLines.join('\n').trim();
+    results.push({
+      sessionNum: sessionNum,
+      session: sessionName,
+      number: currentSlide.num,
+      title: currentSlide.title,
+      body: body,
+      type: detectType(currentSlide.title, body)
+    });
+    bodyLines = [];
+    currentSlide = null;
+  }
+
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i];
+    var t = line.trim();
+
+    if (t === '') {
+      if (bodyLines.length > 0) bodyLines.push('');
+      continue;
+    }
+
+    var sm = t.match(/^Session\s+(\d+)\s*[:—\-–]\s*(.+)/i);
+    if (sm) {
+      save();
+      sessionNum = parseInt(sm[1]);
+      sessionName = sm[2].split('(')[0].trim();
+      continue;
+    }
+
+    // Standalone "Static Graphic" or "Static Slide" → title/holding slide
+    if (/^Static\s*(Graphic|Slide)/i.test(t) && !currentSlide) {
+      save();
+      currentSlide = { num: results.filter(function(r) { return r.sessionNum === sessionNum; }).length + 1, title: t };
+      save(); // save immediately — no body content
+      continue;
+    }
+    if (/^Teacher:/i.test(t)) continue;
+    if (/^Title Slide:/i.test(t)) {
+      // Skip this line and all continuation lines until next slide/session marker
+      while (i + 1 < lines.length) {
+        var nextT = lines[i + 1].trim();
+        if (/^(Slide\s+\d|Session\s+\d|\d+\s*[:.]\s|Static\s*(Graphic|Slide)|CHART\b|Teacher:)/i.test(nextT) || nextT === '') break;
+        i++;
+      }
+      continue;
+    }
+    // CHART lines create a chart placeholder slide
+    if (/^CHART\b/i.test(t) && !currentSlide) {
+      save();
+      currentSlide = { num: results.filter(function(r) { return r.sessionNum === sessionNum; }).length + 1, title: t };
+      continue;
+    }
+
+    var slideMatch = t.match(/^Slide\s+(\d+)\s*:\s*(.*)$/i);
+    if (slideMatch) {
+      save();
+      var slideTitle = stripTimecode(slideMatch[2]);
+      if (slideTitle === '' || /^\([\d:]*\)$/.test(slideTitle)) {
+        slideTitle = '';
+      }
+      currentSlide = { num: parseInt(slideMatch[1]), title: slideTitle };
+      continue;
+    }
+
+    var numMatch = t.match(/^(\d+)\s*[:.]\s*(.+)/);
+    if (numMatch && t.charCodeAt(0) !== 0x201C && t.charAt(0) !== '"' && !currentSlide) {
+      save();
+      currentSlide = { num: parseInt(numMatch[1]), title: stripTimecode(numMatch[2]) };
+      continue;
+    }
+
+    if (currentSlide) {
+      if (/^\d+\s+We want/.test(t)) continue;
+      // Don't include "Static Graphic" lines as body content
+      if (/^Static\s*(Graphic|Slide)/i.test(t)) continue;
+      bodyLines.push(line);
+    }
+  }
+  save();
+  return results;
+}
+
+// ============================================================
+// PARSE CACHE
+// ============================================================
+
+var PARSED_CACHE = {};
+
+async function ensureCourseLoaded(courseId) {
+  if (!COURSE_TEXT[courseId] && REMOTE_MODE) {
+    await loadRemoteCourseText(courseId);
+  }
+}
+
+function getParsedSlides(courseId) {
+  if (!PARSED_CACHE[courseId]) {
+    var text = COURSE_TEXT[courseId];
+    if (!text) return [];
+    var lines = text.split('\n');
+    PARSED_CACHE[courseId] = parseSlides(lines, courseId);
+  }
+  return PARSED_CACHE[courseId];
+}
+
+// ============================================================
+// UI LOGIC
+// ============================================================
+
+// ============================================================
+// COLOR PICKER LOGIC
+// ============================================================
+
+var colorsToggle = document.getElementById('colorsToggle');
+var colorsGrid = document.getElementById('colorsGrid');
+var colorsArrow = document.getElementById('colorsArrow');
+
+colorsToggle.addEventListener('click', function () {
+  colorsGrid.classList.toggle('open');
+  colorsArrow.classList.toggle('open');
+});
+
+// Sync color picker ↔ hex text input pairs
+function setupColorPair(pickerId, hexId) {
+  var picker = document.getElementById(pickerId);
+  var hex = document.getElementById(hexId);
+  picker.addEventListener('input', function () {
+    hex.value = picker.value.toUpperCase();
+  });
+  hex.addEventListener('input', function () {
+    var v = hex.value.trim();
+    if (/^#[0-9A-Fa-f]{6}$/.test(v)) {
+      picker.value = v;
+    }
+  });
+  hex.addEventListener('blur', function () {
+    var v = hex.value.trim();
+    if (!/^#/.test(v)) v = '#' + v;
+    if (/^#[0-9A-Fa-f]{6}$/.test(v)) {
+      hex.value = v.toUpperCase();
+      picker.value = v;
+    } else {
+      hex.value = picker.value.toUpperCase();
+    }
+  });
+}
+
+setupColorPair('colorBg', 'hexBg');
+setupColorPair('colorText', 'hexText');
+setupColorPair('colorFooter', 'hexFooter');
+setupColorPair('colorAttr', 'hexAttr');
+setupColorPair('colorMarker', 'hexMarker');
+
+function getColorValues() {
+  return {
+    bg: document.getElementById('hexBg').value,
+    text: document.getElementById('hexText').value,
+    footer: document.getElementById('hexFooter').value,
+    attribution: document.getElementById('hexAttr').value,
+    marker: document.getElementById('hexMarker').value
+  };
+}
+
+// Logo section — toggle + color picker + SVG preview
+var logoToggle = document.getElementById('logoToggle');
+var logoGrid = document.getElementById('logoGrid');
+var logoArrow = document.getElementById('logoArrow');
+
+logoToggle.addEventListener('click', function () {
+  logoGrid.classList.toggle('open');
+  logoArrow.classList.toggle('open');
+});
+
+// Logo color picker sync
+setupColorPair('colorLogo', 'hexLogo');
+setupColorPair('colorLogoBg', 'hexLogoBg');
+
+// Update SVG preview color and background when logo colors change
+var logoPreview = document.getElementById('logoPreview');
+var logoPreviewBg = document.getElementById('logoPreviewBg');
+
+function updateLogoPreview() {
+  var color = document.getElementById('hexLogo').value;
+  var bgColor = document.getElementById('hexLogoBg').value;
+  var paths = logoPreview.querySelectorAll('path');
+  for (var i = 0; i < paths.length; i++) {
+    paths[i].setAttribute('fill', color);
+  }
+  logoPreviewBg.style.background = bgColor;
+}
+
+document.getElementById('colorLogo').addEventListener('input', updateLogoPreview);
+document.getElementById('hexLogo').addEventListener('input', function () {
+  if (/^#[0-9A-Fa-f]{6}$/.test(this.value)) updateLogoPreview();
+});
+document.getElementById('hexLogo').addEventListener('blur', updateLogoPreview);
+document.getElementById('colorLogoBg').addEventListener('input', updateLogoPreview);
+document.getElementById('hexLogoBg').addEventListener('input', function () {
+  if (/^#[0-9A-Fa-f]{6}$/.test(this.value)) updateLogoPreview();
+});
+document.getElementById('hexLogoBg').addEventListener('blur', updateLogoPreview);
+
+// Font section toggle
+var fontToggle = document.getElementById('fontToggle');
+var fontGrid = document.getElementById('fontGrid');
+var fontArrow = document.getElementById('fontArrow');
+
+fontToggle.addEventListener('click', function () {
+  fontGrid.classList.toggle('open');
+  fontArrow.classList.toggle('open');
+});
+
+function findOriginalSlide(sessionNum, slideNum) {
+  var courseId = document.getElementById('courseSelect').value;
+  if (!courseId) return null;
+  var allParsed = getParsedSlides(courseId);
+  for (var i = 0; i < allParsed.length; i++) {
+    if (allParsed[i].sessionNum === sessionNum && allParsed[i].number === slideNum) {
+      return { type: allParsed[i].type, title: allParsed[i].title, body: allParsed[i].body, sessionNum: sessionNum, number: slideNum };
+    }
+  }
+  return null;
+}
+
+function getFontConfig() {
+  var ids = ['fontTitle', 'fontBody', 'fontEmphasis', 'fontAttribution', 'fontLabels'];
+  var keys = ['title', 'body', 'emphasis', 'attribution', 'labels'];
+  var config = {};
+  for (var i = 0; i < ids.length; i++) {
+    var val = document.getElementById(ids[i]).value;
+    var parts = val.split('|');
+    config[keys[i]] = { family: parts[0], style: parts[1] };
+  }
+  return config;
+}
+
+// SVG path data for logo (used to build SVG string for Figma)
+var LOGO_SVG_PATHS = [
+  'M27.0541 32.8376C23.5515 32.8376 20.0567 33.7423 16.9253 35.567L5.25773 42.3325L8.56701 47.3969L21.9433 37.6624L24.317 34.5773H24.6959L24.2242 53.2113H29.8995L29.4278 34.5773H29.8067L32.1804 37.6624L45.5567 47.3969L48.866 42.3325L37.1985 35.567C34.0593 33.7577 30.5644 32.8376 27.0619 32.8376H27.0541Z',
+  'M39.0155 25.7474L35.1727 25.2294L34.9794 24.8969L51.2938 15.982L48.4562 11.049L32.6134 20.7835L32.4201 20.451L33.8969 16.8479L35.5979 0.347938L29.5902 0V13.5309C29.5902 17.1649 30.5567 20.6598 32.3119 23.7062C34.0593 26.7526 36.6031 29.3351 39.7268 31.1521L51.3943 37.9175L54.1005 32.5129L39.0155 25.7474Z',
+  'M21.8041 23.7062C23.5515 20.6598 24.5258 17.1649 24.5258 13.5309V7.15256e-07L18.5103 0.347939L20.2113 16.8479L21.6804 20.451L21.4871 20.7835L5.65206 11.049L2.81443 15.982L19.1289 24.8969L18.9356 25.2294L15.0851 25.7474L0 32.5129L2.70619 37.9175L14.3737 31.1521C17.5129 29.3428 20.049 26.7526 21.7887 23.7062H21.8119H21.8041Z'
+];
+
+function getLogoData() {
+  var enabled = document.getElementById('logoEnabled').checked;
+  if (!enabled) return { svg: null, bgColor: null };
+  var color = document.getElementById('hexLogo').value;
+  var bgColor = document.getElementById('hexLogoBg').value;
+  var svg = '<svg width="55" height="54" viewBox="0 0 55 54" fill="none" xmlns="http://www.w3.org/2000/svg">';
+  for (var i = 0; i < LOGO_SVG_PATHS.length; i++) {
+    svg += '<path d="' + LOGO_SVG_PATHS[i] + '" fill="' + color + '"/>';
+  }
+  svg += '</svg>';
+  return { svg: svg, bgColor: bgColor };
+}
+
+var courseSelect   = document.getElementById('courseSelect');
+var sessionSelect = document.getElementById('sessionSelect');
+var preview       = document.getElementById('preview');
+var status        = document.getElementById('status');
+var buildBtn      = document.getElementById('buildBtn');
+var cancelBtn     = document.getElementById('cancelBtn');
+
+async function populateSessions() {
+  var courseId = courseSelect.value;
+  var course = COURSES[courseId];
+  if (!course) return;
+  var sessions = course.sessions;
+  sessionSelect.innerHTML = '';
+  var allOpt = document.createElement('option');
+  allOpt.value = 'all';
+  allOpt.textContent = '\u2014 Entire Course (' + sessions.length + ' classes) \u2014';
+  sessionSelect.appendChild(allOpt);
+  sessions.forEach(function (s) {
+    var opt = document.createElement('option');
+    opt.value = s.num;
+    opt.textContent = 'Class ' + s.num + ' \u2014 ' + s.label;
+    sessionSelect.appendChild(opt);
+  });
+  // Load course text if remote
+  await ensureCourseLoaded(courseId);
+  updatePreview();
+  buildBtn.disabled = false;
+}
+
+function updatePreview() {
+  var courseId = courseSelect.value;
+  var val = sessionSelect.value;
+  var allParsed = getParsedSlides(courseId);
+
+  if (val === 'all') {
+    // Entire course preview
+    var course = COURSES[courseId];
+    var totalSlides = allParsed.length;
+    var counts = {};
+    allParsed.forEach(function (s) {
+      counts[s.type] = (counts[s.type] || 0) + 1;
+    });
+    var tags = Object.keys(counts).map(function (type) {
+      return '<span class="tag ' + type + '">' + type + ' &times; ' + counts[type] + '</span>';
+    }).join('');
+    var allLocators = '';
+    var allCharts = allParsed.filter(function (s) { return s.type === 'chart' || s.type === 'graphic'; });
+    if (allCharts.length > 0) {
+      allLocators = '<div style="margin-top:6px;padding-top:6px;border-top:1px solid #333;">';
+      allCharts.forEach(function (s) {
+        var tagClass = s.type === 'chart' ? 'chart' : 'graphic';
+        allLocators += '<div style="font-size:10px;color:#999;margin-top:2px;">' +
+          '<span class="tag ' + tagClass + '">' + s.type + '</span> ' +
+          'S' + s.sessionNum + ' Slide ' + s.number + (s.title ? ' \u2014 ' + s.title : '') + '</div>';
+      });
+      allLocators += '</div>';
+    }
+    preview.innerHTML = '<strong style="color:#e0e0e0">' + totalSlides + ' slides across ' + course.sessions.length + ' classes</strong> &nbsp; ' + tags +
+      '<br><span style="color:#666;font-size:10px;margin-top:4px;display:block">' +
+      course.name + ' \u2014 Each class on its own Figma page</span>' + allLocators;
+    buildBtn.disabled = false;
+    return;
+  }
+
+  var sessionNum = parseInt(val);
+  var filtered = allParsed.filter(function (s) { return s.sessionNum === sessionNum; });
+
+  if (filtered.length === 0) {
+    preview.innerHTML = '<span style="color:#ff6b6b">No slides found for Class ' + sessionNum + '.</span>';
+    buildBtn.disabled = true;
+    return;
+  }
+
+  var counts = {};
+  filtered.forEach(function (s) {
+    counts[s.type] = (counts[s.type] || 0) + 1;
+  });
+
+  var tags = Object.keys(counts).map(function (type) {
+    return '<span class="tag ' + type + '">' + type + ' &times; ' + counts[type] + '</span>';
+  }).join('');
+
+  // Chart/graphic locators — show slide numbers for easy finding
+  var locators = '';
+  var chartSlides = filtered.filter(function (s) { return s.type === 'chart' || s.type === 'graphic'; });
+  if (chartSlides.length > 0) {
+    locators = '<div style="margin-top:6px;padding-top:6px;border-top:1px solid #333;">';
+    chartSlides.forEach(function (s) {
+      var tagClass = s.type === 'chart' ? 'chart' : 'graphic';
+      locators += '<div style="font-size:10px;color:#999;margin-top:2px;">' +
+        '<span class="tag ' + tagClass + '">' + s.type + '</span> ' +
+        'Slide ' + s.number + (s.title ? ' \u2014 ' + s.title : '') + '</div>';
+    });
+    locators += '</div>';
+  }
+
+  preview.innerHTML = '<strong style="color:#e0e0e0">' + filtered.length + ' slides</strong> &nbsp; ' + tags +
+    '<br><span style="color:#666;font-size:10px;margin-top:4px;display:block">' +
+    COURSES[courseId].name + ' \u2014 Class ' + sessionNum + ': ' + (filtered[0].session || '') + '</span>' + locators;
+
+  buildBtn.disabled = false;
+}
+
+courseSelect.addEventListener('change', function () {
+  populateSessions();
+});
+sessionSelect.addEventListener('change', updatePreview);
+initCourseData();
+
+buildBtn.addEventListener('click', function () {
+  var courseId = courseSelect.value;
+  var val = sessionSelect.value;
+  var allParsed = getParsedSlides(courseId);
+  var course = COURSES[courseId];
+
+  if (val === 'all') {
+    // Build entire course — one page per session
+    buildBtn.disabled = true;
+    status.textContent = 'Building entire course (' + course.sessions.length + ' classes)...';
+    status.className = 'status';
+
+    var sessionGroups = [];
+    course.sessions.forEach(function (sess) {
+      var filtered = allParsed.filter(function (s) { return s.sessionNum === sess.num; });
+      if (filtered.length > 0) {
+        sessionGroups.push({
+          slides: filtered,
+          sessionNum: sess.num,
+          sessionName: sess.label
+        });
+      }
+    });
+
+    parent.postMessage({
+      pluginMessage: {
+        type: 'buildAll',
+        sessionGroups: sessionGroups,
+        courseName: course.name,
+        colors: getColorValues(),
+        logoData: getLogoData(),
+        fontConfig: getFontConfig(),
+        totalSessions: course.sessions.length,
+        includePageNumbers: document.getElementById('pageNumbersCheck').checked,
+        exportPrintView: document.getElementById('printViewCheck').checked
+      }
+    }, '*');
+    return;
+  }
+
+  var sessionNum = parseInt(val);
+  var filtered = allParsed.filter(function (s) { return s.sessionNum === sessionNum; });
+
+  if (filtered.length === 0) {
+    status.textContent = 'No slides found for that class.';
+    status.className = 'status error';
+    return;
+  }
+
+  buildBtn.disabled = true;
+  status.textContent = 'Building ' + filtered.length + ' slides...';
+  status.className = 'status';
+
+  var cleanLabel = '';
+  for (var si = 0; si < course.sessions.length; si++) {
+    if (course.sessions[si].num === sessionNum) {
+      cleanLabel = course.sessions[si].label;
+      break;
+    }
+  }
+  parent.postMessage({
+    pluginMessage: {
+      type: 'build',
+      slides: filtered,
+      sessionNum: sessionNum,
+      sessionName: cleanLabel || filtered[0].session || '',
+      courseName: course.name,
+      colors: getColorValues(),
+      logoData: getLogoData(),
+      fontConfig: getFontConfig(),
+      totalSessions: course.sessions.length,
+      includePageNumbers: document.getElementById('pageNumbersCheck').checked,
+      exportPrintView: document.getElementById('printViewCheck').checked
+    }
+  }, '*');
+});
+
+cancelBtn.addEventListener('click', function () {
+  parent.postMessage({ pluginMessage: { type: 'removePreview' } }, '*');
+  parent.postMessage({ pluginMessage: { type: 'cancel' } }, '*');
+});
+
+// ============================================================
+// EDIT SLIDE MODE
+// ============================================================
+
+var editPanel = document.getElementById('editPanel');
+var buildPanel = document.getElementById('buildPanel');
+var editContent = document.getElementById('editContent');
+var editNoSelection = document.getElementById('editNoSelection');
+var editSlideInfo = document.getElementById('editSlideInfo');
+var editTitle = document.getElementById('editTitle');
+var editBody = document.getElementById('editBody');
+var editStatus = document.getElementById('editStatus');
+var editUpdateBtn = document.getElementById('editUpdateBtn');
+var editCancelBtn = document.getElementById('editCancelBtn');
+var editOverrideNote = document.getElementById('editOverrideNote');
+var editRevertBtn = document.getElementById('editRevertBtn');
+var editVersions = document.getElementById('editVersions');
+var editVersionList = document.getElementById('editVersionList');
+var insertLeftBtn = document.getElementById('insertLeftBtn');
+var insertRightBtn = document.getElementById('insertRightBtn');
+var deleteSlideBtn = document.getElementById('deleteSlideBtn');
+var editTypeRow = document.getElementById('editTypeRow');
+var editTypeBtns = editTypeRow.querySelectorAll('button');
+var overrideBadge = document.getElementById('overrideBadge');
+var overrideBadgeText = document.getElementById('overrideBadgeText');
+var clearAllOverridesBtn = document.getElementById('clearAllOverridesBtn');
+var tabBuild = document.getElementById('tabBuild');
+var tabEdit = document.getElementById('tabEdit');
+
+var editState = { frameId: null, frameX: 0, frameY: 0, sessionNum: 0, slideNum: 0, type: 'body', hasOverride: false };
+var hasEditData = false;
+
+function switchTab(tabName) {
+  tabBuild.classList.toggle('active', tabName === 'build');
+  tabEdit.classList.toggle('active', tabName === 'edit');
+  buildPanel.classList.toggle('active', tabName === 'build');
+  editPanel.classList.toggle('active', tabName === 'edit');
+  if (tabName === 'edit') {
+    editNoSelection.style.display = hasEditData ? 'none' : 'block';
+    editContent.style.display = hasEditData ? 'flex' : 'none';
+    if (hasEditData) sendEditPreview();
+    // Load trash list
+    parent.postMessage({ pluginMessage: { type: 'getTrash' } }, '*');
+  } else {
+    // Remove preview when leaving edit tab
+    parent.postMessage({ pluginMessage: { type: 'removePreview' } }, '*');
+  }
+  setTimeout(resizeUI, 20);
+}
+
+tabBuild.addEventListener('click', function () { switchTab('build'); });
+tabEdit.addEventListener('click', function () { switchTab('edit'); });
+
+function setEditType(type, triggerPreview) {
+  editState.type = type;
+  for (var i = 0; i < editTypeBtns.length; i++) {
+    editTypeBtns[i].classList.toggle('selected', editTypeBtns[i].getAttribute('data-type') === type);
+  }
+  if (triggerPreview) sendEditPreview();
+}
+
+for (var i = 0; i < editTypeBtns.length; i++) {
+  editTypeBtns[i].addEventListener('click', function () {
+    setEditType(this.getAttribute('data-type'), true);
+  });
+}
+
+function enterEditMode(data) {
+  editState.frameId = data.frameId;
+  editState.frameX = data.frameX;
+  editState.frameY = data.frameY;
+  editState.sessionNum = data.sessionNum;
+  editState.slideNum = data.slideNum;
+  editState.hasOverride = data.hasOverride || false;
+  editState.courseName = data.courseName || '';
+  editState.sessionLabel = data.sessionLabel || '';
+  hasEditData = true;
+
+  setEditType(data.slideType);
+  editTitle.value = data.title || '';
+  editBody.value = data.body || '';
+  document.getElementById('editFooterLeft').value = editState.courseName;
+  document.getElementById('editFooterRight').value = editState.sessionLabel;
+  editSlideInfo.textContent = 'S' + data.sessionNum + ' \u00B7 Slide ' + data.slideNum + ' \u2014 ' + (data.title || 'Untitled');
+  editStatus.textContent = '';
+
+  // Show override indicator and revert button
+  editOverrideNote.style.display = editState.hasOverride ? 'block' : 'none';
+  editRevertBtn.style.display = editState.hasOverride ? 'block' : 'none';
+
+  // Show version history if available
+  if (data.versions && data.versions.length > 0) {
+    editVersions.style.display = 'block';
+    editVersionList.innerHTML = '';
+    data.versions.forEach(function (v, idx) {
+      var row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:4px 6px;border-radius:3px;font-size:11px;';
+      var label = document.createElement('span');
+      label.style.color = '#999';
+      label.textContent = v.label;
+      var btn = document.createElement('button');
+      btn.style.cssText = 'padding:2px 8px;font-size:10px;background:#333;color:#aaa;border:1px solid #3a3a3a;border-radius:3px;cursor:pointer;';
+      btn.textContent = 'Restore';
+      btn.addEventListener('click', function () {
+        parent.postMessage({ pluginMessage: { type: 'restoreVersion', sessionNum: editState.sessionNum, slideNum: editState.slideNum, versionIndex: idx } }, '*');
+      });
+      row.appendChild(label);
+      row.appendChild(btn);
+      editVersionList.appendChild(row);
+    });
+    // Add "Original" option
+    var origRow = document.createElement('div');
+    origRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:4px 6px;border-radius:3px;font-size:11px;';
+    var origLabel = document.createElement('span');
+    origLabel.style.color = '#70c870';
+    origLabel.textContent = 'Original (from source)';
+    var origBtn = document.createElement('button');
+    origBtn.style.cssText = 'padding:2px 8px;font-size:10px;background:#2a3a2a;color:#70c870;border:1px solid #3a4a3a;border-radius:3px;cursor:pointer;';
+    origBtn.textContent = 'Restore';
+    origBtn.addEventListener('click', function () {
+      var origSlide = findOriginalSlide(editState.sessionNum, editState.slideNum);
+      parent.postMessage({ pluginMessage: { type: 'revertSlide', originalSlide: origSlide, colors: getColorValues(), fontConfig: getFontConfig() } }, '*');
+    });
+    origRow.appendChild(origLabel);
+    origRow.appendChild(origBtn);
+    editVersionList.appendChild(origRow);
+  } else if (editState.hasOverride) {
+    editVersions.style.display = 'block';
+    editVersionList.innerHTML = '';
+    var origRow = document.createElement('div');
+    origRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:4px 6px;border-radius:3px;font-size:11px;';
+    var origLabel = document.createElement('span');
+    origLabel.style.color = '#70c870';
+    origLabel.textContent = 'Original (from source)';
+    var origBtn = document.createElement('button');
+    origBtn.style.cssText = 'padding:2px 8px;font-size:10px;background:#2a3a2a;color:#70c870;border:1px solid #3a4a3a;border-radius:3px;cursor:pointer;';
+    origBtn.textContent = 'Restore';
+    origBtn.addEventListener('click', function () {
+      var origSlide = findOriginalSlide(editState.sessionNum, editState.slideNum);
+      parent.postMessage({ pluginMessage: { type: 'revertSlide', originalSlide: origSlide, colors: getColorValues(), fontConfig: getFontConfig() } }, '*');
+    });
+    origRow.appendChild(origLabel);
+    origRow.appendChild(origBtn);
+    editVersionList.appendChild(origRow);
+  } else {
+    editVersions.style.display = 'none';
+  }
+
+  switchTab('edit');
+}
+
+function updateOverrideBadge(count) {
+  if (count > 0) {
+    overrideBadge.style.display = 'flex';
+    overrideBadgeText.textContent = count + ' slide override' + (count > 1 ? 's' : '') + ' saved \u2014 will apply on next build';
+  } else {
+    overrideBadge.style.display = 'none';
+  }
+  setTimeout(resizeUI, 20);
+}
+
+editUpdateBtn.addEventListener('click', function () {
+  editUpdateBtn.disabled = true;
+  editStatus.textContent = 'Updating slide...';
+  editStatus.className = 'status';
+
+  parent.postMessage({
+    pluginMessage: {
+      type: 'updateSlide',
+      frameId: editState.frameId,
+      frameX: editState.frameX,
+      frameY: editState.frameY,
+      slideType: editState.type,
+      sessionNum: editState.sessionNum,
+      slideNum: editState.slideNum,
+      title: editTitle.value,
+      body: editBody.value,
+      courseName: document.getElementById('editFooterLeft').value,
+      sessionLabel: document.getElementById('editFooterRight').value,
+      colors: getColorValues(),
+      fontConfig: getFontConfig()
+    }
+  }, '*');
+});
+
+editCancelBtn.addEventListener('click', function () {
+  parent.postMessage({ pluginMessage: { type: 'removePreview' } }, '*');
+  parent.postMessage({ pluginMessage: { type: 'cancel' } }, '*');
+});
+
+editRevertBtn.addEventListener('click', function () {
+  // Find original slide data from parsed slides
+  var origSlide = findOriginalSlide(editState.sessionNum, editState.slideNum);
+  parent.postMessage({ pluginMessage: {
+    type: 'revertSlide',
+    originalSlide: origSlide,
+    colors: getColorValues(),
+    fontConfig: getFontConfig()
+  }}, '*');
+});
+
+document.getElementById('commitBtnEdit').addEventListener('click', function () {
+  if (!hasEditData) return;
+  parent.postMessage({ pluginMessage: {
+    type: 'commitSlide',
+    sessionNum: editState.sessionNum,
+    slideNum: editState.slideNum,
+    slideType: editState.type,
+    title: editTitle.value,
+    originalFrameId: editState.frameId
+  }}, '*');
+});
+
+insertLeftBtn.addEventListener('click', function () {
+  if (!hasEditData) return;
+  parent.postMessage({ pluginMessage: {
+    type: 'insertSlide',
+    direction: 'left',
+    sessionNum: editState.sessionNum,
+    slideNum: editState.slideNum,
+    frameId: editState.frameId,
+    frameX: editState.frameX,
+    frameY: editState.frameY,
+    colors: getColorValues(),
+    fontConfig: getFontConfig()
+  }}, '*');
+});
+
+insertRightBtn.addEventListener('click', function () {
+  if (!hasEditData) return;
+  parent.postMessage({ pluginMessage: {
+    type: 'insertSlide',
+    direction: 'right',
+    sessionNum: editState.sessionNum,
+    slideNum: editState.slideNum,
+    frameId: editState.frameId,
+    frameX: editState.frameX,
+    frameY: editState.frameY,
+    colors: getColorValues(),
+    fontConfig: getFontConfig()
+  }}, '*');
+});
+
+deleteSlideBtn.addEventListener('click', function () {
+  if (!hasEditData) return;
+  parent.postMessage({ pluginMessage: {
+    type: 'deleteSlide',
+    sessionNum: editState.sessionNum,
+    slideNum: editState.slideNum,
+    frameId: editState.frameId,
+    frameX: editState.frameX
+  }}, '*');
+});
+
+// Trash management
+document.getElementById('emptyTrashBtn').addEventListener('click', function () {
+  parent.postMessage({ pluginMessage: { type: 'emptyTrash' } }, '*');
+});
+
+function updateTrashUI(items) {
+  var section = document.getElementById('trashSection');
+  var list = document.getElementById('trashList');
+  if (!items || items.length === 0) {
+    section.style.display = 'none';
+    list.innerHTML = '';
+    setTimeout(resizeUI, 20);
+    return;
+  }
+  section.style.display = 'block';
+  list.innerHTML = '';
+  items.forEach(function (item) {
+    var row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:4px 6px;border-radius:3px;font-size:11px;';
+    var info = document.createElement('span');
+    info.style.color = '#999';
+    info.textContent = item.name + (item.date ? ' \u00B7 ' + item.date : '');
+    var btn = document.createElement('button');
+    btn.style.cssText = 'padding:2px 8px;font-size:10px;background:#2a3a2a;color:#70c870;border:1px solid #3a4a3a;border-radius:3px;cursor:pointer;';
+    btn.textContent = 'Recover';
+    btn.addEventListener('click', function () {
+      parent.postMessage({ pluginMessage: { type: 'recoverSlide', trashId: item.id } }, '*');
+    });
+    row.appendChild(info);
+    row.appendChild(btn);
+    list.appendChild(row);
+  });
+  setTimeout(resizeUI, 20);
+}
+
+// Load trash on edit tab open
+// Build-panel commit/revert (same actions, different buttons)
+document.getElementById('commitBtnBuild').addEventListener('click', function () {
+  if (!editState.slideNum) return;
+  parent.postMessage({ pluginMessage: {
+    type: 'commitSlide',
+    sessionNum: editState.sessionNum,
+    slideNum: editState.slideNum,
+    slideType: editState.type,
+    title: editTitle.value,
+    originalFrameId: editState.frameId
+  }}, '*');
+});
+document.getElementById('revertBtnBuild').addEventListener('click', function () {
+  // Need to get session/slide from current selection — the handler in code.js reads from selection
+  parent.postMessage({ pluginMessage: {
+    type: 'revertSlide',
+    originalSlide: editState.slideNum ? findOriginalSlide(editState.sessionNum, editState.slideNum) : null,
+    colors: getColorValues(),
+    fontConfig: getFontConfig()
+  }}, '*');
+});
+
+clearAllOverridesBtn.addEventListener('click', function () {
+  parent.postMessage({ pluginMessage: { type: 'clearAllOverrides' } }, '*');
+});
+
+document.getElementById('cleanPrintBtn').addEventListener('click', function () {
+  parent.postMessage({ pluginMessage: { type: 'cleanupPrintPages' } }, '*');
+});
+
+document.getElementById('printCurrentPageBtn').addEventListener('click', function () {
+  var status = document.getElementById('status');
+  status.textContent = 'Generating print view...';
+  status.className = 'status';
+  parent.postMessage({ pluginMessage: { type: 'printCurrentPage' } }, '*');
+});
+
+// Auto-resize edit textareas
+// Live preview — debounced updates as user edits
+var previewTimer = null;
+function sendEditPreview() {
+  clearTimeout(previewTimer);
+  previewTimer = setTimeout(function () {
+    if (!hasEditData) return;
+    parent.postMessage({
+      pluginMessage: {
+        type: 'previewSlide',
+        slideType: editState.type,
+        sessionNum: editState.sessionNum,
+        slideNum: editState.slideNum,
+        title: editTitle.value,
+        body: editBody.value,
+        frameX: editState.frameX,
+        frameY: editState.frameY,
+        courseName: document.getElementById('editFooterLeft').value,
+        sessionLabel: document.getElementById('editFooterRight').value,
+        colors: getColorValues(),
+        fontConfig: getFontConfig()
+      }
+    }, '*');
+  }, 400);
+}
+
+editBody.addEventListener('input', function () {
+  this.style.height = 'auto';
+  this.style.height = this.scrollHeight + 'px';
+  setTimeout(resizeUI, 20);
+  sendEditPreview();
+});
+
+editTitle.addEventListener('input', sendEditPreview);
+document.getElementById('editFooterLeft').addEventListener('input', sendEditPreview);
+document.getElementById('editFooterRight').addEventListener('input', sendEditPreview);
+
+window.onmessage = function (event) {
+  var msg = event.data.pluginMessage;
+  if (!msg) return;
+
+  // Edit mode: slide data from selected frame
+  if (msg.type === 'editSlide') {
+    enterEditMode(msg);
+    return;
+  }
+
+  // No valid slide frame selected — show helper in edit tab
+  if (msg.type === 'noSelection') {
+    hasEditData = false;
+    editNoSelection.style.display = 'block';
+    editContent.style.display = 'none';
+    setTimeout(resizeUI, 20);
+    return;
+  }
+
+  // Restore saved settings (colors, logo, fonts)
+  if (msg.type === 'savedSettings') {
+    if (msg.settings) {
+      var s = msg.settings;
+      if (s.colors) {
+        var colorMap = {
+          bg: ['colorBg', 'hexBg'], text: ['colorText', 'hexText'],
+          footer: ['colorFooter', 'hexFooter'], attribution: ['colorAttr', 'hexAttr'],
+          marker: ['colorMarker', 'hexMarker']
+        };
+        for (var ck in colorMap) {
+          if (s.colors[ck]) {
+            document.getElementById(colorMap[ck][0]).value = s.colors[ck];
+            document.getElementById(colorMap[ck][1]).value = s.colors[ck].toUpperCase();
+          }
+        }
+      }
+      if (s.logoColors) {
+        if (s.logoColors.logo) {
+          document.getElementById('colorLogo').value = s.logoColors.logo;
+          document.getElementById('hexLogo').value = s.logoColors.logo.toUpperCase();
+        }
+        if (s.logoColors.bg) {
+          document.getElementById('colorLogoBg').value = s.logoColors.bg;
+          document.getElementById('hexLogoBg').value = s.logoColors.bg.toUpperCase();
+        }
+        updateLogoPreview();
+      }
+      if (s.fonts) {
+        var fontIds = { title: 'fontTitle', body: 'fontBody', emphasis: 'fontEmphasis', attribution: 'fontAttribution', labels: 'fontLabels' };
+        for (var fk in fontIds) {
+          if (s.fonts[fk]) document.getElementById(fontIds[fk]).value = s.fonts[fk];
+        }
+      }
+      if (s.course) {
+        document.getElementById('courseSelect').value = s.course;
+        document.getElementById('courseSelect').dispatchEvent(new Event('change'));
+      }
+      if (s.includePageNumbers) document.getElementById('pageNumbersCheck').checked = true;
+      if (s.exportPrintView) document.getElementById('printViewCheck').checked = true;
+    }
+    return;
+  }
+
+  if (msg.type === 'slideUpdated') {
+    editStatus.textContent = 'Slide updated';
+    editStatus.className = 'status success';
+    editUpdateBtn.disabled = false;
+    editState.hasOverride = true;
+    editOverrideNote.style.display = 'block';
+    // Update editState with new frame reference
+    if (msg.frameId) editState.frameId = msg.frameId;
+    if (msg.frameX !== undefined) editState.frameX = msg.frameX;
+    if (msg.frameY !== undefined) editState.frameY = msg.frameY;
+    if (typeof msg.overrideCount === 'number') updateOverrideBadge(msg.overrideCount);
+    return;
+  }
+
+  if (msg.type === 'slideCommitted') {
+    editStatus.textContent = 'Design committed';
+    editStatus.className = 'status success';
+    status.textContent = 'S' + msg.sessionNum + ' Slide ' + msg.slideNum + ' committed';
+    status.className = 'status success';
+    editState.hasOverride = true;
+    editOverrideNote.style.display = 'block';
+    updateOverrideBadge(msg.overrideCount);
+    return;
+  }
+
+  if (msg.type === 'slideReverted') {
+    editStatus.textContent = 'Restored to original';
+    editStatus.className = 'status success';
+    status.textContent = 'S' + msg.sessionNum + ' Slide ' + msg.slideNum + ' restored';
+    status.className = 'status success';
+    editState.hasOverride = false;
+    editOverrideNote.style.display = 'none';
+    editRevertBtn.style.display = 'none';
+    editVersions.style.display = 'none';
+    updateOverrideBadge(msg.overrideCount);
+    // Update edit fields with restored original data
+    if (msg.restoredData) {
+      editTitle.value = msg.restoredData.title || '';
+      editBody.value = msg.restoredData.body || '';
+      if (msg.restoredData.type) setEditType(msg.restoredData.type);
+    }
+    return;
+  }
+
+  if (msg.type === 'slideInserted') {
+    editStatus.textContent = 'Slide added ' + msg.direction;
+    editStatus.className = 'status success';
+    status.textContent = 'Slide added ' + msg.direction + ' of Slide ' + msg.slideNum;
+    status.className = 'status success';
+    return;
+  }
+
+  if (msg.type === 'versionRestored') {
+    editStatus.textContent = 'Version restored';
+    editStatus.className = 'status success';
+    return;
+  }
+
+  if (msg.type === 'slideDeleted') {
+    editStatus.textContent = 'Slide moved to trash';
+    editStatus.className = 'status success';
+    status.textContent = 'Slide moved to trash';
+    status.className = 'status success';
+    hasEditData = false;
+    editNoSelection.style.display = 'block';
+    editContent.style.display = 'none';
+    if (msg.trash) updateTrashUI(msg.trash);
+    setTimeout(resizeUI, 20);
+    return;
+  }
+
+  if (msg.type === 'slideRecovered') {
+    editStatus.textContent = 'Slide recovered';
+    editStatus.className = 'status success';
+    if (msg.trash) updateTrashUI(msg.trash);
+    return;
+  }
+
+  if (msg.type === 'trashList') {
+    updateTrashUI(msg.items);
+    return;
+  }
+
+  if (msg.type === 'overrideCount') {
+    updateOverrideBadge(msg.count);
+    return;
+  }
+
+  if (msg.type === 'pageCharts') {
+    var chartDiv = document.getElementById('chartLocators');
+    var chartList = document.getElementById('chartLocatorList');
+    // Only show charts that DON'T have a design override (user already handled those)
+    var pending = (msg.charts || []).filter(function (c) { return !c.hasDesignOverride; });
+    if (pending.length === 0) {
+      chartDiv.style.display = 'none';
+    } else {
+      chartDiv.style.display = 'block';
+      chartList.innerHTML = '';
+      pending.forEach(function (c) {
+        var row = document.createElement('div');
+        row.style.cssText = 'display:flex;align-items:center;gap:6px;cursor:pointer;padding:3px 4px;border-radius:3px;transition:background 0.1s;';
+        row.onmouseenter = function () { row.style.background = '#333'; };
+        row.onmouseleave = function () { row.style.background = 'transparent'; };
+        var tagClass = c.type === 'chart' ? 'chart' : 'graphic';
+        row.innerHTML = '<span class="tag ' + tagClass + '">' + c.type + '</span>' +
+          '<span style="font-size:11px;color:#ccc;">S' + c.sessionNum + ' Slide ' + c.slideNum +
+          (c.title ? ' \u2014 <span style="color:#888">' + c.title + '</span>' : '') + '</span>';
+        row.addEventListener('click', function () {
+          parent.postMessage({ pluginMessage: { type: 'zoomToFrame', frameId: c.frameId } }, '*');
+        });
+        chartList.appendChild(row);
+      });
+    }
+    setTimeout(resizeUI, 20);
+    return;
+  }
+
+  if (msg.type === 'overrideCleared') {
+    updateOverrideBadge(msg.count);
+    return;
+  }
+
+  if (msg.type === 'done') {
+    status.textContent = '\u2713 ' + msg.count + ' slides built for Class ' + msg.session;
+    status.className = 'status success';
+    buildBtn.disabled = false;
+    saveCurrentSettings();
+  }
+  if (msg.type === 'doneAll') {
+    status.textContent = '\u2713 ' + msg.totalSlides + ' slides built across ' + msg.totalSessions + ' pages';
+    status.className = 'status success';
+    buildBtn.disabled = false;
+    saveCurrentSettings();
+  }
+  if (msg.type === 'progress') {
+    status.textContent = 'Building class ' + msg.current + ' of ' + msg.total + '...';
+    status.className = 'status';
+  }
+  if (msg.type === 'printPagesReady') {
+    status.textContent = 'Print pages created — use File > Export Frames to PDF';
+    status.className = 'status success';
+    document.getElementById('printCleanupRow').style.display = 'flex';
+    buildBtn.disabled = false;
+    setTimeout(resizeUI, 20);
+    return;
+  }
+  if (msg.type === 'printCleaned') {
+    status.textContent = msg.count + ' print page' + (msg.count !== 1 ? 's' : '') + ' removed';
+    status.className = 'status success';
+    document.getElementById('printCleanupRow').style.display = 'none';
+    setTimeout(resizeUI, 20);
+    return;
+  }
+  if (msg.type === 'error') {
+    status.textContent = 'Error: ' + msg.message;
+    status.className = 'status error';
+    buildBtn.disabled = false;
+    editUpdateBtn.disabled = false;
+  }
+};
+
+// Auto-resize plugin window to fit content
+function saveCurrentSettings() {
+  var fontIds = { title: 'fontTitle', body: 'fontBody', emphasis: 'fontEmphasis', attribution: 'fontAttribution', labels: 'fontLabels' };
+  var fonts = {};
+  for (var fk in fontIds) fonts[fk] = document.getElementById(fontIds[fk]).value;
+  parent.postMessage({ pluginMessage: {
+    type: 'saveSettings',
+    settings: {
+      colors: getColorValues(),
+      logoColors: {
+        logo: document.getElementById('hexLogo').value,
+        bg: document.getElementById('hexLogoBg').value
+      },
+      fonts: fonts,
+      course: document.getElementById('courseSelect').value,
+      includePageNumbers: document.getElementById('pageNumbersCheck').checked,
+      exportPrintView: document.getElementById('printViewCheck').checked
+    }
+  }}, '*');
+}
+
+// Request saved settings on load
+parent.postMessage({ pluginMessage: { type: 'loadSettings' } }, '*');
+
+function resizeUI() {
+  // Use a wrapper div to measure true content height independent of viewport
+  var wrapper = document.getElementById('uiWrapper');
+  var h = wrapper.offsetHeight + 32; // 32 = body padding top+bottom
+  parent.postMessage({ pluginMessage: { type: 'resize', height: h } }, '*');
+}
+
+// Resize on load
+resizeUI();
+
+// Resize when collapsible sections toggle
+['colorsToggle', 'logoToggle', 'fontToggle'].forEach(function (id) {
+  document.getElementById(id).addEventListener('click', function () {
+    setTimeout(resizeUI, 20);
+  });
+});
+
+// Resize when session/course selection changes preview content
+document.getElementById('courseSelect').addEventListener('change', function () { setTimeout(resizeUI, 50); });
+document.getElementById('sessionSelect').addEventListener('change', function () { setTimeout(resizeUI, 50); });
+</script>
+</body>
+</html>
