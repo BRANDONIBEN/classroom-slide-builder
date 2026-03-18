@@ -502,6 +502,10 @@ var saveTimer = null;
 
   // Keyboard shortcuts
   document.addEventListener('keydown', function(e) {
+    // Undo/Redo works everywhere (even in inputs)
+    if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); return; }
+    if ((e.metaKey || e.ctrlKey) && e.key === 'z' && e.shiftKey) { e.preventDefault(); redo(); return; }
+    if ((e.metaKey || e.ctrlKey) && e.key === 'y') { e.preventDefault(); redo(); return; }
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
     if (e.key === 'ArrowDown' || e.key === 'j') { navNext(); e.preventDefault(); }
     if (e.key === 'ArrowUp' || e.key === 'k') { navPrev(); e.preventDefault(); }
@@ -538,9 +542,64 @@ function setSaveState(state) {
   }
 }
 
+// Undo/Redo stack
+var _undoStack = [];
+var _redoStack = [];
+var _undoMax = 30;
+var _lastSnapshot = '';
+
+function captureSnapshot() {
+  var snap = JSON.stringify({ name:course.name, id:course.id, teacher:course.teacher, sessions:course.sessions });
+  if (snap === _lastSnapshot) return; // no change
+  _undoStack.push(_lastSnapshot);
+  if (_undoStack.length > _undoMax) _undoStack.shift();
+  _redoStack = [];
+  _lastSnapshot = snap;
+}
+
+function undo() {
+  if (_undoStack.length === 0) { toast('Nothing to undo'); return; }
+  _redoStack.push(_lastSnapshot);
+  var prev = _undoStack.pop();
+  _lastSnapshot = prev;
+  restoreSnapshot(prev);
+  toast('Undo');
+}
+
+function redo() {
+  if (_redoStack.length === 0) { toast('Nothing to redo'); return; }
+  _undoStack.push(_lastSnapshot);
+  var next = _redoStack.pop();
+  _lastSnapshot = next;
+  restoreSnapshot(next);
+  toast('Redo');
+}
+
+function restoreSnapshot(snap) {
+  if (!snap) return;
+  var data = JSON.parse(snap);
+  course.name = data.name || '';
+  course.id = data.id || '';
+  course.teacher = data.teacher || '';
+  course.sessions = data.sessions || [makeSession('')];
+  document.getElementById('courseName').value = course.name;
+  document.getElementById('courseId').value = course.id;
+  document.getElementById('courseTeacher').value = course.teacher;
+  if (sel.si >= course.sessions.length) sel.si = 0;
+  if (sel.sli >= (course.sessions[sel.si] ? course.sessions[sel.si].slides.length : 0)) sel.sli = 0;
+  renderAll();
+  scheduleAutosave();
+}
+
+// Initialize first snapshot
+setTimeout(function() {
+  _lastSnapshot = JSON.stringify({ name:course.name, id:course.id, teacher:course.teacher, sessions:course.sessions });
+}, 100);
+
 function scheduleAutosave() {
   if (saveTimer) clearTimeout(saveTimer);
   setSaveState('saving');
+  captureSnapshot();
   saveTimer = setTimeout(function() {
     // Local save (instant)
     var data = { name:course.name, id:course.id, teacher:course.teacher, sessions:course.sessions };
