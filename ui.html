@@ -1051,6 +1051,8 @@ function parseSlides(lines, courseId) {
       if (bodyLines.length > 0) bodyLines.push('');
       continue;
     }
+    // Skip standalone page numbers from PDF (e.g. "1", "23", "104")
+    if (/^\d{1,3}$/.test(t) && !currentSlide) continue;
 
     var sm = t.match(/^Session\s+(\d+)\s*[:—\-–]\s*(.+)/i);
     if (sm) {
@@ -1106,6 +1108,8 @@ function parseSlides(lines, courseId) {
       if (/^\d+\s+We want/.test(t)) continue;
       // Don't include "Static Graphic" lines as body content
       if (/^Static\s*(Graphic|Slide)/i.test(t)) continue;
+      // Skip standalone page numbers in body content
+      if (/^\d{1,3}$/.test(t)) continue;
       bodyLines.push(line);
     }
   }
