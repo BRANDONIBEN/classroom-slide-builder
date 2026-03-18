@@ -8,7 +8,7 @@
 //             numbers. Increase yield time between sessions. Diagnostic logging.
 // ============================================================
 
-figma.showUI(__html__, { width: 480, height: 320 });
+figma.showUI(__html__, { width: 480, height: 560 });
 
 // Check if a slide frame is selected on launch
 (function detectSelection() {
@@ -708,7 +708,7 @@ figma.ui.onmessage = async function (msg) {
     });
   }
   if (msg.type === 'resize') {
-    figma.ui.resize(480, Math.min(msg.height, 900));
+    figma.ui.resize(480, Math.min(Math.max(msg.height, 480), 900));
   }
   if (msg.type === 'getTrash') {
     figma.ui.postMessage({ type: 'trashList', items: getTrashList() });

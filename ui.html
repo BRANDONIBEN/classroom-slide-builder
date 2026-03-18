@@ -2969,7 +2969,7 @@ function resizeUI() {
   } else {
     h = wrapper.offsetHeight + 32;
   }
-  if (h < 100) h = 100;
+  if (h < 480) h = 480;
   parent.postMessage({ pluginMessage: { type: 'resize', height: h } }, '*');
 }
 
