@@ -123,6 +123,7 @@
   .tag.body      { background: #2a2a3a; color: #7070c8; }
   .tag.graphic   { background: #2a3a2a; color: #90c890; }
   .tag.chart     { background: #3a2a2a; color: #e24337; }
+  .tag.illustration { background: #3a2e1e; color: #D4A853; }
   .tag.table     { background: #2a2a3a; color: #c8a870; }
 
   .colors-section {
@@ -348,7 +349,7 @@
   <h2>Classroom Slide Builder</h2>
   <select id="versionSelect" style="padding:2px 4px;font-size:9px;font-weight:600;background:#2a2a2a;color:#6bcb77;border:1px solid #3a3a3a;border-radius:3px;cursor:pointer;outline:none;width:auto;">
     <option value="v1">V1</option>
-    <option value="v2">V2</option>
+    <option value="v2" selected>V2</option>
   </select>
 </div>
 
@@ -383,6 +384,7 @@
       <button data-type="statement">Statement</button>
       <button data-type="graphic">Graphic</button>
       <button data-type="chart">Chart</button>
+      <button data-type="illustration">Illustration</button>
       <button data-type="table">Table</button>
     </div>
   </div>
@@ -395,6 +397,11 @@
   <div class="edit-field">
     <label>Body</label>
     <textarea id="editBody" placeholder="Slide body content..." rows="5"></textarea>
+  </div>
+
+  <div id="imageRefRow" class="edit-field" style="display:none;">
+    <label>Image Path <span style="font-weight:400;color:#888;">(Dropbox path or URL)</span></label>
+    <input type="text" id="editImageRef" placeholder="e.g. images/diagram.png" style="font-size:12px;padding:6px 8px;">
   </div>
 
   <div style="display:flex;gap:8px;">
@@ -1014,6 +1021,8 @@ function parseSlides(lines, courseId) {
     var b = body.trim();
     // Title/holding slide — "Static Graphic" or "Static Slide"
     if (/^Static\s*(Graphic|Slide)/i.test(t)) return 'graphic';
+    // Illustration/image slide
+    if (/^ILLUSTRATION/i.test(t) || /^IMAGE/i.test(t) || /^ILLUSTRATION/i.test(b)) return 'illustration';
     // Chart/illustration placeholder
     if (/^CHART/i.test(t) || /^CHART/i.test(b)) return 'chart';
     // Table/comparison slide — look for header pattern + verse references as data
@@ -1634,6 +1643,9 @@ function setEditType(type, triggerPreview) {
   for (var i = 0; i < editTypeBtns.length; i++) {
     editTypeBtns[i].classList.toggle('selected', editTypeBtns[i].getAttribute('data-type') === type);
   }
+  // Show/hide image ref field for illustration type
+  var imgRow = document.getElementById('imageRefRow');
+  if (imgRow) imgRow.style.display = type === 'illustration' ? '' : 'none';
   if (triggerPreview) sendEditPreview();
 }
 
@@ -1784,6 +1796,7 @@ editUpdateBtn.addEventListener('click', function () {
       body: editBody.value,
       courseName: document.getElementById('editFooterLeft').value,
       sessionLabel: document.getElementById('editFooterRight').value,
+      imageRef: document.getElementById('editImageRef').value || '',
       colors: getColorValues(),
       fontConfig: getFontConfig()
     }
@@ -1951,6 +1964,7 @@ function sendEditPreview() {
         frameY: editState.frameY,
         courseName: document.getElementById('editFooterLeft').value,
         sessionLabel: document.getElementById('editFooterRight').value,
+        imageRef: document.getElementById('editImageRef').value || '',
         colors: getColorValues(),
         fontConfig: getFontConfig()
       }
@@ -2327,6 +2341,9 @@ document.getElementById('versionSelect').addEventListener('change', function () 
   saveCurrentSettings();
   setTimeout(resizeUI, 20);
 });
+
+// Default to V2 on first load (before settings arrive)
+applyVersionUI('v2');
 
 // ============================================================
 // ============================================================

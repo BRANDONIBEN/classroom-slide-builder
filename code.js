@@ -242,7 +242,8 @@ figma.ui.onmessage = async function (msg) {
         mode: 'text',
         type: msg.slideType,
         title: msg.title,
-        body: msg.body
+        body: msg.body,
+        imageRef: msg.imageRef || ''
       });
 
       // Find the original frame and replace it
@@ -269,7 +270,8 @@ figma.ui.onmessage = async function (msg) {
         number: msg.slideNum,
         _courseName: msg.courseName || '',
         _sessionLabel: msg.sessionLabel || '',
-        _rawEdit: true
+        _rawEdit: true,
+        imageRef: msg.imageRef || ''
       };
       var newFrame = buildFrame(slide, x, y);
       parentNode.appendChild(newFrame);
@@ -566,7 +568,8 @@ figma.ui.onmessage = async function (msg) {
         number: msg.slideNum,
         _courseName: msg.courseName || '',
         _sessionLabel: msg.sessionLabel || '',
-        _rawEdit: true
+        _rawEdit: true,
+        imageRef: msg.imageRef || ''
       };
       var previewFrame = buildFrame(slide, msg.frameX, msg.frameY + 1080 + 60);
       previewFrame.name = '[PREVIEW]';
@@ -1729,6 +1732,7 @@ function buildFrame(slide, x, y) {
     case 'list':       buildListSlide(frame, slide); break;
     case 'graphic':    buildGraphicSlide(frame, slide); break;
     case 'chart':      buildChartSlide(frame, slide); break;
+    case 'illustration': buildIllustrationSlide(frame, slide); break;
     case 'table':      buildTableSlide(frame, slide); break;
     default:           buildBodySlide(frame, slide);
   }
@@ -2294,6 +2298,99 @@ function buildChartSlide(frame, slide) {
   if (bodyNode) {
     centerBlockVertically([bodyNode], CONTENT_TOP, CONTENT_BOTTOM);
   }
+}
+
+// Illustration/Image slide — renders an image centered with optional title above
+// If no image data provided, shows a gold placeholder
+function buildIllustrationSlide(frame, slide) {
+  var title = polishText(slide.title || '');
+  var IMG_AREA_TOP = CONTENT_TOP;
+  var IMG_AREA_BOTTOM = CONTENT_BOTTOM;
+
+  // Title above image if present
+  if (title) {
+    addText(frame, title, {
+      x: SIDE_MARGIN,
+      y: CONTENT_TOP,
+      w: CONTENT_W,
+      h: 50,
+      size: 28,
+      color: COLORS.textPrimary,
+      align: 'CENTER',
+      font: 'sans'
+    });
+    IMG_AREA_TOP = CONTENT_TOP + 60;
+  }
+
+  var imgW = CONTENT_W - 120; // padding on sides
+  var imgH = IMG_AREA_BOTTOM - IMG_AREA_TOP - 40;
+  var imgX = SIDE_MARGIN + 60;
+  var imgY = IMG_AREA_TOP + 20;
+
+  // If image data was provided (base64), render it
+  if (slide._imageData) {
+    try {
+      var imgBytes = figma.base64Decode(slide._imageData);
+      var imgHash = figma.createImage(imgBytes).hash;
+      var rect = figma.createRectangle();
+      rect.resize(imgW, imgH);
+      rect.x = imgX;
+      rect.y = imgY;
+      rect.fills = [{ type: 'IMAGE', imageHash: imgHash, scaleMode: 'FIT' }];
+      rect.cornerRadius = 8;
+      frame.appendChild(rect);
+    } catch (e) {
+      // Fallback to placeholder on error
+      renderIllustrationPlaceholder(frame, imgX, imgY, imgW, imgH);
+    }
+  } else {
+    renderIllustrationPlaceholder(frame, imgX, imgY, imgW, imgH);
+  }
+
+  // Store image ref in plugin data if present
+  if (slide.imageRef) {
+    frame.setPluginData('imageRef', slide.imageRef);
+  }
+}
+
+function renderIllustrationPlaceholder(frame, x, y, w, h) {
+  // Dashed border rectangle
+  var rect = figma.createRectangle();
+  rect.resize(w, h);
+  rect.x = x;
+  rect.y = y;
+  rect.fills = [{ type: 'SOLID', color: COLORS.bg, opacity: 0.3 }];
+  rect.strokes = [{ type: 'SOLID', color: { r: 0.831, g: 0.659, b: 0.325 } }]; // #D4A853
+  rect.strokeWeight = 2;
+  rect.dashPattern = [12, 8];
+  rect.cornerRadius = 8;
+  frame.appendChild(rect);
+
+  // Gold icon placeholder — camera/image icon
+  var iconSize = 48;
+  addText(frame, '\u25A3', { // ▣ square with fill
+    x: x + (w - iconSize) / 2,
+    y: y + (h / 2) - 40,
+    w: iconSize,
+    h: iconSize,
+    size: 40,
+    color: { r: 0.831, g: 0.659, b: 0.325 }, // #D4A853
+    align: 'CENTER',
+    font: 'sans'
+  });
+
+  // "Image Placeholder" label
+  addText(frame, 'Image Placeholder', {
+    x: x,
+    y: y + (h / 2) + 10,
+    w: w,
+    h: 30,
+    size: 18,
+    color: { r: 0.831, g: 0.659, b: 0.325 }, // #D4A853
+    opacity: 0.8,
+    align: 'CENTER',
+    font: 'sans'
+  });
 }
 
 function buildTableSlide(frame, slide) {
