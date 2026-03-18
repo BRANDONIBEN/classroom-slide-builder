@@ -8,11 +8,8 @@
   "documentAccess": "dynamic-page",
   "networkAccess": {
     "allowedDomains": [
-      "https://content.dropboxapi.com",
-      "https://api.dropboxapi.com",
       "https://raw.githubusercontent.com",
-      "https://www.githubstatus.com",
-      "https://status.dropbox.com"
+      "https://www.githubstatus.com"
     ]
   }
 }

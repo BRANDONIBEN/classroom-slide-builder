@@ -1,0 +1,2636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Classroom Slide Builder</title>
+<style>
+  :root {
+    --bg: #1a1a1a; --surface: #222; --surface2: #2a2a2a; --border: #333; --border2: #444;
+    --text: #e0e0e0; --text2: #999; --text3: #666;
+    --gold: #5774fd; --gold-hover: #3b4df3; --gold-dim: #2b39d7; --green: #6bcb77; --red: #c87070; --blue: #5b9bd5;
+    --blurple-50: #edf4ff; --blurple-100: #ddebff; --blurple-200: #c2d8ff; --blurple-300: #a0bdff;
+    --blurple-400: #79f; --blurple-500: #5774fd; --blurple-600: #3b4df3; --blurple-700: #2b39d7;
+    --blurple-800: #2633ad; --blurple-900: #273388; --blurple-950: #171d4f;
+    --radius: 6px;
+    --nav-w: 220px;
+    --preview-w: 440px;
+    /* slide colors — clean black on white for readability */
+    --slide-bg: #ffffff; --slide-title-color: #111; --slide-body-color: #333;
+    --slide-footer-color: #999; --slide-ref-color: #555;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background:var(--bg); color:var(--text); height:100vh; overflow:hidden; display:flex; flex-direction:column; }
+
+  /* HEADER */
+  header { display:flex; align-items:center; justify-content:space-between; padding:10px 20px; background:var(--surface); border-bottom:1px solid var(--border); flex-shrink:0; z-index:100; }
+  header h1 { font-size:14px; font-weight:700; letter-spacing:.5px; }
+  .logo { display:flex; align-items:center; gap:8px; }
+  .version-tag { font-size:9px; color:var(--text3); padding:2px 6px; border:1px solid var(--border); border-radius:4px; }
+  .actions { display:flex; gap:6px; }
+  .btn { padding:7px 16px; border:none; border-radius:var(--radius); font-size:12px; font-weight:600; cursor:pointer; transition:all .15s; }
+  .btn:hover { filter:brightness(1.1); }
+  .btn-gold { background:var(--gold); color:#fff; }
+  .btn-gold:hover { background:var(--gold-hover); }
+  .btn-outline { background:transparent; border:1px solid var(--border2); color:var(--text2); }
+  .btn-outline:hover { border-color:var(--text2); color:var(--text); }
+  .btn-sm { padding:5px 10px; font-size:11px; }
+  .btn-red { background:var(--red); color:#fff; }
+
+  /* 3-COLUMN LAYOUT */
+  .layout { display:flex; flex:1; overflow:hidden; }
+
+  /* LEFT NAV */
+  .nav-panel { width:var(--nav-w); min-width:160px; max-width:400px; background:var(--surface); border-right:1px solid var(--border); display:flex; flex-direction:column; flex-shrink:0; overflow:hidden; position:relative; }
+  .nav-resize-handle { position:absolute; top:0; right:0; bottom:0; width:8px; cursor:col-resize; z-index:20; display:flex; align-items:center; justify-content:center; }
+  .nav-resize-handle::after { content:''; width:3px; height:32px; border-radius:2px; background:var(--border2); transition:background .15s; }
+  .nav-resize-handle:hover::after, .nav-resize-handle.dragging::after { background:var(--blurple-400); }
+  .nav-header { padding:10px 12px; border-bottom:1px solid var(--border); font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:1px; color:var(--text2); display:flex; justify-content:space-between; align-items:center; }
+  .nav-scroll { flex:1; overflow-y:auto; padding:6px; }
+  .nav-session { margin-bottom:6px; }
+  .nav-session-title { font-size:10px; font-weight:600; color:var(--text2); padding:4px 6px; cursor:pointer; user-select:none; display:flex; justify-content:space-between; align-items:center; }
+  .nav-session-title:hover { color:var(--text); }
+  .nav-slide { display:flex; align-items:center; gap:6px; padding:4px 6px 4px 14px; border-radius:4px; cursor:pointer; font-size:10px; color:var(--text3); transition:all .1s; }
+  .nav-slide:hover { background:var(--surface2); color:var(--text2); }
+  .nav-slide.active { background:var(--gold); color:#fff; font-weight:600; }
+  .nav-slide .type-dot { width:6px; height:6px; border-radius:50%; flex-shrink:0; }
+  .nav-slide .slide-label { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:1; }
+  .nav-add-btn { display:block; width:100%; padding:4px; background:transparent; border:1px dashed var(--border2); border-radius:4px; color:var(--text3); font-size:10px; cursor:pointer; text-align:center; margin-top:2px; }
+  .nav-add-btn:hover { border-color:var(--blurple-400); color:var(--blurple-400); }
+
+  /* CENTER EDITOR */
+  .editor-panel { flex:1; overflow-y:auto; padding:20px; min-width:0; }
+  .course-header { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:18px 20px; margin-bottom:18px; }
+  .row { display:flex; gap:12px; margin-bottom:14px; }
+  .row:last-child { margin-bottom:0; }
+  label { font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:1px; color:var(--text2); display:block; margin-bottom:6px; }
+  input, select, textarea { width:100%; padding:7px 10px; background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius); color:var(--text); font-size:12px; font-family:inherit; outline:none; transition:border-color .15s; }
+  input:focus, textarea:focus { border-color:var(--blurple-400); }
+  textarea { resize:vertical; min-height:50px; line-height:1.4; }
+  .field { flex:1; }
+  .field-sm { flex:0 0 110px; }
+  .field-xs { flex:0 0 70px; }
+
+  /* SLIDE EDITOR */
+  .slide-editor { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:20px; }
+  .slide-editor-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+  .slide-editor-header h2 { font-size:13px; font-weight:600; color:var(--blurple-400); }
+  .slide-editor-header .slide-nav { display:flex; gap:4px; }
+
+  /* TYPE PILLS */
+  .type-pills { display:flex; gap:3px; flex-wrap:wrap; }
+  .type-pill { padding:5px 12px; border-radius:12px; font-size:11px; font-weight:600; cursor:pointer; border:1px solid var(--border); background:transparent; color:var(--text2); transition:all .15s; }
+  .type-pill:hover { border-color:var(--text2); }
+  .type-pill.active { color:#1a1a1a; }
+  .type-pill[data-t="body"].active { background:var(--blue); border-color:var(--blue); }
+  .type-pill[data-t="list"].active { background:#8b5cf6; border-color:#8b5cf6; }
+  .type-pill[data-t="quote"].active { background:#d97706; border-color:#d97706; }
+  .type-pill[data-t="scripture"].active { background:var(--green); border-color:var(--green); }
+  .type-pill[data-t="statement"].active { background:#ec4899; border-color:#ec4899; }
+  .type-pill[data-t="illustration"].active { background:#14b8a6; border-color:#14b8a6; }
+  .type-pill[data-t="graphic"].active { background:#f59e0b; border-color:#f59e0b; }
+  .type-pill[data-t="chart"].active { background:#06b6d4; border-color:#06b6d4; }
+  .type-pill[data-t="table"].active { background:#a855f7; border-color:#a855f7; }
+
+  /* CONTENT BLOCKS */
+  .content-blocks { display:flex; flex-direction:column; gap:10px; margin-top:12px; }
+  .content-block { background:var(--bg); border:1px solid var(--border); border-radius:var(--radius); padding:14px; position:relative; }
+  .content-block-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+  .content-block-type { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1px; }
+  .cb-body .content-block-type { color:var(--blue); }
+  .cb-scripture .content-block-type { color:var(--green); }
+  .cb-list .content-block-type { color:#8b5cf6; }
+  .cb-quote .content-block-type { color:#d97706; }
+  .cb-table .content-block-type { color:#a855f7; }
+  .cb-illustration .content-block-type { color:#14b8a6; }
+  .cb-graphic .content-block-type { color:#f59e0b; }
+  .add-block-row { display:flex; gap:4px; justify-content:center; margin-top:6px; }
+  .add-block-btn { padding:5px 14px; font-size:11px; border:1px dashed var(--border2); border-radius:12px; background:transparent; color:var(--text3); cursor:pointer; }
+  .add-block-btn:hover { border-color:var(--blurple-400); color:var(--blurple-400); }
+
+  /* FOOTER PREVIEW */
+  .footer-preview { background:var(--bg); border:1px solid var(--border); border-radius:var(--radius); padding:8px 12px; margin-top:10px; display:flex; justify-content:space-between; font-size:10px; color:var(--text3); }
+  .footer-preview span { font-style:italic; }
+
+  /* IMAGE DROP */
+  .image-drop { border:2px dashed var(--border2); border-radius:var(--radius); padding:12px; text-align:center; color:var(--text3); font-size:10px; cursor:pointer; min-height:50px; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:4px; }
+  .image-drop:hover { border-color:var(--blurple-400); }
+  .image-drop.has-image { border-style:solid; border-color:var(--green); padding:4px; }
+  .image-drop img { width:100%; border-radius:4px; display:block; }
+
+  /* RIGHT PREVIEW */
+  .preview-panel { width:var(--preview-w); background:#111; border-left:1px solid var(--border); display:flex; flex-direction:column; flex-shrink:0; overflow:hidden; }
+  .preview-header { padding:8px 12px; border-bottom:1px solid var(--border); font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:1px; color:var(--text2); }
+  .preview-scroll { flex:1; overflow-y:auto; padding:12px; display:flex; flex-direction:column; align-items:center; gap:10px; }
+  /*
+   * Preview uses EXACT plugin layout (code.js):
+   * W=1920, H=1080
+   * SIDE_MARGIN=260 (13.54%), CONTENT_W=1400 (72.92%)
+   * LABEL_Y=50 (4.63%), CONTENT_TOP=120 (11.11%), CONTENT_BOTTOM=980 (90.74%)
+   * FOOTER_Y=1006 (93.15%), FOOTER_MARGIN=50 (2.60%)
+   * TITLE_SIZE=32 (1.67%W), BODY~28 (1.46%W), FOOTER_SIZE=24 (1.25%W)
+   * REF is BODY - 8px smaller, italic serif
+   * Page number centered at FOOTER_Y
+   */
+  .slide-preview {
+    width:100%; aspect-ratio:16/9; background:var(--slide-bg); border-radius:4px;
+    position:relative; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,.3);
+    cursor:pointer; transition:transform .15s; container-type:inline-size;
+    flex-shrink:0;
+  }
+  .slide-preview:hover { transform:scale(1.01); }
+  .slide-preview.active-preview { outline:2px solid var(--blurple-400); outline-offset:2px; }
+
+  /* Title at LABEL_Y=50/1080=4.63% from top, centered in CONTENT_W */
+  .sp-title {
+    position:absolute; top:4.63%; left:13.54%; width:72.92%;
+    font-size:1.67cqi; font-weight:400; color:var(--slide-title-color);
+    text-align:center; line-height:1.3;
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  }
+
+  /* Content zone: vertically centered between CONTENT_TOP(11.11%) and CONTENT_BOTTOM(90.74%) */
+  .sp-content {
+    position:absolute; top:11.11%; left:13.54%; width:72.92%; bottom:9.26%;
+    display:flex; flex-direction:column; justify-content:center; align-items:center;
+    text-align:center; gap:0.8cqi;
+  }
+
+  /*
+   * Body: serif regular — size is set dynamically via inline style
+   * Plugin scale: ≤150ch=48px(2.5%), ≤300=44px(2.29%), ≤500=40px(2.08%), ≤750=36px(1.875%), 750+=32px(1.67%)
+   */
+  .sp-body { color:var(--slide-body-color); line-height:1.45; max-width:100%; font-family:Georgia,'Times New Roman',serif; }
+  .sp-scripture-ref { font-weight:400; color:var(--slide-attr-color,#999); font-family:Georgia,'Times New Roman',serif; font-style:italic; opacity:0.75; }
+  .sp-scripture-text { color:var(--slide-body-color); line-height:1.45; max-width:100%; font-family:Georgia,'Times New Roman',serif; text-align:center; }
+  .sp-list-item { color:var(--slide-body-color); text-align:left; line-height:1.5; font-family:Georgia,'Times New Roman',serif; }
+  /* Attribution: REF_OFFSET=8px smaller than body, italic */
+  .sp-ref { color:var(--slide-ref-color); font-style:italic; margin-top:3.3cqi; font-family:Georgia,'Times New Roman',serif; }
+
+  /* Footer at FOOTER_Y=1006/1080=93.15%, FOOTER_MARGIN=50/1920=2.60% */
+  .sp-footer {
+    position:absolute; bottom:0; left:0; right:0;
+    top:93.15%; height:6.85%;
+    display:flex; align-items:flex-start; justify-content:space-between;
+    padding:0 2.60%;
+    font-size:1.25cqi; color:var(--slide-footer-color);
+    font-family:-apple-system,sans-serif;
+  }
+  /* Page number: centered at FOOTER_Y */
+  .sp-footer-c { position:absolute; left:50%; transform:translateX(-50%); }
+  .sp-footer-l {}
+  .sp-footer-r {}
+
+  .sp-num { display:none; }
+
+  /* Full-size preview modal */
+  .preview-modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,.85); z-index:500; justify-content:center; align-items:center; cursor:pointer; }
+  .preview-modal.show { display:flex; }
+  .preview-modal-inner { width:85vw; max-width:1200px; aspect-ratio:16/9; background:#fff; border-radius:8px; position:relative; overflow:hidden; padding:5% 6%; display:flex; flex-direction:column; box-shadow:0 8px 40px rgba(0,0,0,.5); }
+  .preview-modal-inner .sp-title { font-size:28px; }
+  .preview-modal-inner .sp-body { font-size:18px; }
+  .preview-modal-inner .sp-scripture-ref { font-size:22px; }
+  .preview-modal-inner .sp-scripture-text { font-size:18px; }
+  .preview-modal-inner .sp-list-item { font-size:18px; }
+  .preview-modal-inner .sp-ref { font-size:16px; }
+  .preview-modal-inner .sp-footer { font-size:12px; }
+  .preview-modal-inner .sp-num { font-size:12px; }
+  .preview-modal-inner .sp-type-badge { font-size:10px; padding:3px 8px; }
+  .sp-type-badge { position:absolute; top:4px; right:4px; font-size:5px; padding:1px 4px; border-radius:3px; font-weight:700; text-transform:uppercase; color:#fff; opacity:.8; }
+
+  /* VIDEO PLAYER (pinned in preview panel) */
+  .video-player {
+    background:var(--surface); border-bottom:1px solid var(--border); overflow:hidden; flex-shrink:0;
+  }
+  .video-player.collapsed .vp-body { display:none; }
+  .video-player .vp-header {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:6px 12px; background:var(--surface2); cursor:pointer; user-select:none;
+  }
+  .vp-header span { font-size:10px; font-weight:600; color:var(--text2); }
+  .vp-body { padding:8px; }
+  .vp-body input { margin-bottom:6px; font-size:11px; padding:5px 8px; }
+  .vp-body iframe, .vp-body video { width:100%; aspect-ratio:16/9; border-radius:4px; border:none; background:#000; display:block; }
+  .vp-controls { display:flex; gap:6px; margin-top:6px; align-items:center; }
+  .vp-controls button { padding:4px 12px; font-size:11px; }
+  .vp-tc { font-family:monospace; font-size:14px; color:var(--blurple-400); cursor:pointer; font-weight:600; }
+  .vp-tc:hover { text-decoration:underline; }
+  .stamp-btn { padding:5px 14px; background:var(--blurple-500); color:#fff; border:none; border-radius:var(--radius); font-size:11px; font-weight:600; cursor:pointer; margin-left:auto; }
+  .stamp-btn:hover { background:var(--blurple-600); }
+
+  /* PREVIEW RESIZE HANDLE */
+  .preview-resize-handle { width:8px; cursor:col-resize; background:transparent; transition:background .15s; flex-shrink:0; display:flex; align-items:center; justify-content:center; }
+  .preview-resize-handle::after { content:''; width:3px; height:32px; border-radius:2px; background:var(--border2); transition:background .15s; }
+  .preview-resize-handle:hover::after, .preview-resize-handle.dragging::after { background:var(--blurple-400); }
+  .preview-panel.hidden { display:none; }
+  .preview-resize-handle.hidden { display:none; }
+
+  /* STATUS BAR */
+  .status-bar { display:flex; align-items:center; justify-content:space-between; padding:6px 20px; background:var(--surface); border-top:1px solid var(--border); font-size:10px; color:var(--text3); flex-shrink:0; }
+  .stats { display:flex; gap:14px; }
+
+  /* TIMECODE */
+  input.timecode { font-family:'SF Mono','Fira Code',monospace; text-align:center; letter-spacing:1px; }
+
+  /* EMPTY STATE */
+  .empty-state { text-align:center; padding:40px; color:var(--text3); }
+  .empty-state h3 { font-size:14px; color:var(--text2); margin-bottom:8px; }
+
+  /* TOAST */
+  .toast { position:fixed; bottom:40px; left:50%; transform:translateX(-50%) translateY(20px); background:var(--green); color:#1a1a1a; padding:6px 18px; border-radius:var(--radius); font-size:11px; font-weight:600; opacity:0; transition:all .3s; z-index:200; pointer-events:none; }
+  .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+
+  @keyframes pulse { from { opacity:1; } to { opacity:.4; } }
+
+  /* Blurple spellcheck underline */
+  ::spelling-error { text-decoration: wavy underline var(--blurple-400); text-decoration-thickness: 2px; }
+  ::grammar-error { text-decoration: wavy underline var(--blurple-300); text-decoration-thickness: 1px; }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width:6px; }
+  ::-webkit-scrollbar-track { background:transparent; }
+  ::-webkit-scrollbar-thumb { background:var(--border2); border-radius:3px; }
+  ::-webkit-scrollbar-thumb:hover { background:var(--text3); }
+
+  /* NAV SLIDE DELETE */
+  .nav-slide-del { display:none; font-size:10px; color:var(--text3); cursor:pointer; padding:2px 4px; margin-left:auto; line-height:1; flex-shrink:0; border-radius:3px; }
+  .nav-slide-del:hover { color:#fff; background:var(--red); }
+  .nav-slide:hover .nav-slide-del { display:block; }
+
+  /* KEYBOARD HINT */
+  kbd { font-size:9px; padding:1px 4px; background:var(--surface2); border:1px solid var(--border); border-radius:3px; color:var(--text3); font-family:inherit; }
+
+  /* COURSE CONTEXT MENU */
+  .course-menu-wrap { position:relative; margin-left:auto; flex-shrink:0; }
+  .course-menu-btn { font-size:14px; color:var(--text3); cursor:pointer; padding:2px 4px; border-radius:3px; line-height:1; letter-spacing:1px; user-select:none; }
+  .course-menu-btn:hover { color:var(--text); background:var(--surface3,rgba(255,255,255,.06)); }
+  .course-menu-dropdown { display:none; position:fixed; background:var(--surface2); border:1px solid var(--border2); border-radius:6px; min-width:140px; z-index:9999; box-shadow:0 8px 24px rgba(0,0,0,.4); overflow:hidden; }
+  .course-menu-dropdown.open { display:block; }
+  .course-menu-item { padding:7px 12px; font-size:11px; cursor:pointer; display:flex; align-items:center; gap:6px; color:var(--text); white-space:nowrap; }
+  .course-menu-item:hover { background:var(--surface3,rgba(255,255,255,.06)); }
+  .course-menu-item.danger { color:var(--red); }
+  .course-menu-item.danger:hover { background:rgba(200,80,80,.12); }
+  .course-menu-sep { height:1px; background:var(--border); margin:2px 0; }
+
+  /* DELETE MODAL */
+  /* VERSION HISTORY MODAL */
+  .version-list { max-height:400px; overflow-y:auto; margin:0 -4px; }
+  .version-item { padding:10px 12px; border-radius:6px; margin-bottom:4px; display:flex; align-items:center; gap:10px; cursor:default; }
+  .version-item:hover { background:var(--surface2); }
+  .version-item .v-date { font-size:12px; color:var(--text); font-weight:500; min-width:140px; }
+  .version-item .v-msg { font-size:11px; color:var(--text2); flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .version-item .v-revert { font-size:10px; color:var(--blurple-400); cursor:pointer; padding:3px 10px; border:1px solid var(--blurple-700); border-radius:4px; white-space:nowrap; opacity:0; transition:opacity .15s; }
+  .version-item:hover .v-revert { opacity:1; }
+  .version-item.current .v-revert { display:none; }
+  .version-item.current::after { content:'current'; font-size:9px; color:var(--green); text-transform:uppercase; letter-spacing:.5px; }
+
+  .delete-modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:200; align-items:center; justify-content:center; }
+  .delete-modal-overlay.open { display:flex; }
+  .delete-modal { background:var(--surface); border:1px solid var(--border2); border-radius:10px; padding:24px; max-width:360px; width:90%; box-shadow:0 16px 48px rgba(0,0,0,.5); }
+  .delete-modal h3 { margin:0 0 8px; font-size:15px; color:var(--text); font-weight:600; }
+  .delete-modal p { margin:0 0 20px; font-size:12px; color:var(--text2); line-height:1.5; }
+  .delete-modal-actions { display:flex; gap:8px; justify-content:flex-end; }
+  .delete-modal-actions button { padding:6px 16px; border-radius:6px; font-size:12px; cursor:pointer; border:1px solid var(--border); }
+  .delete-modal .btn-cancel { background:var(--surface2); color:var(--text); }
+  .delete-modal .btn-cancel:hover { background:var(--surface3,rgba(255,255,255,.06)); }
+  .delete-modal .btn-delete { background:var(--red); color:#fff; border-color:var(--red); }
+  .delete-modal .btn-delete:hover { opacity:.85; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <img src="logo.svg" alt="PE" style="height:22px;width:auto;filter:brightness(0) saturate(100%) invert(42%) sepia(67%) saturate(5765%) hue-rotate(228deg) brightness(99%) contrast(99%);" onerror="this.src='logo.png';this.style.height='22px';">
+    <h1>Classroom Slide Builder</h1>
+    <span class="version-tag">v1</span>
+  </div>
+  <div class="actions">
+    <span id="saveStatus" style="font-size:11px;font-weight:600;color:var(--green);margin-right:8px;display:flex;align-items:center;gap:5px;transition:all .3s;"><span id="saveDot" style="width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block;transition:background .3s;"></span> Saved</span>
+    <button class="btn btn-outline" onclick="loadFromFile()">Import</button>
+    <button class="btn btn-outline" onclick="exportPDF()">Export PDF</button>
+    <button class="btn btn-outline" onclick="exportGoogleDocs()">Export Google Doc</button>
+  </div>
+</header>
+
+<div class="layout">
+
+  <!-- LEFT NAV -->
+  <div class="nav-panel" id="navPanel">
+    <div class="nav-resize-handle" id="navResizeHandle"></div>
+    <!-- FILES / COURSES (top section) -->
+    <div style="border-bottom:1px solid var(--border);padding:10px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <div style="display:flex;align-items:center;gap:5px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--text2);">
+          <span id="filesDot" style="width:7px;height:7px;border-radius:50%;background:var(--text3);display:inline-block;"></span>
+          Courses
+        </div>
+        <button class="btn btn-sm btn-outline" onclick="loadWatchFolder()" title="Refresh" style="padding:2px 6px;font-size:9px;">&#x21BB;</button>
+      </div>
+      <div id="watchFolderList" style="font-size:11px;color:var(--text3);max-height:150px;overflow-y:auto;margin-bottom:8px;">
+        <span style="font-style:italic;font-size:10px;">Connecting...</span>
+      </div>
+      <div style="display:flex;gap:4px;">
+        <button class="btn btn-sm btn-gold" onclick="newCourse()" style="flex:1;">+ New Course</button>
+      </div>
+    </div>
+    <!-- NAVIGATOR -->
+    <div class="nav-header">
+      <span>Slides</span>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <span id="navCount" style="color:var(--text3);font-weight:400;">0 slides</span>
+        <button onclick="toggleNavMultiSelect()" id="navSelectBtn" style="font-size:8px;padding:2px 6px;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text3);cursor:pointer;">Select</button>
+      </div>
+    </div>
+    <div id="navBulkActions" style="display:none;padding:4px 8px;border-bottom:1px solid var(--border);background:var(--surface2);">
+      <button onclick="deleteSelectedSlides()" style="font-size:10px;padding:3px 10px;background:var(--red);color:#fff;border:none;border-radius:var(--radius);cursor:pointer;">Delete Selected</button>
+      <button onclick="toggleNavMultiSelect()" style="font-size:10px;padding:3px 10px;background:var(--surface);color:var(--text3);border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;margin-left:4px;">Cancel</button>
+    </div>
+    <div class="nav-scroll" id="navScroll"></div>
+  </div>
+
+  <!-- CENTER EDITOR -->
+  <div class="editor-panel" id="editorPanel">
+
+    <!-- Course Header -->
+    <div class="course-header">
+      <div class="row">
+        <div class="field"><label>Course Name</label><input type="text" id="courseName" placeholder="e.g. Essential Theology" oninput="onCourseChange()"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>Teacher / Instructor</label><input type="text" id="courseTeacher" placeholder="e.g. Jake Daghe" oninput="onCourseChange()"></div>
+      </div>
+    </div>
+    <input type="hidden" id="courseId">
+
+    <!-- Slide Editor (populated dynamically) -->
+    <div id="slideEditorContainer"></div>
+
+  </div>
+
+  <!-- RIGHT PREVIEW (resizable) -->
+  <div class="preview-resize-handle" id="previewResizeHandle" title="Drag to resize"></div>
+  <div class="preview-panel" id="previewPanel">
+    <div class="preview-header" style="display:flex;justify-content:space-between;align-items:center;">
+      <span>Live Preview</span>
+      <button class="btn btn-sm btn-outline" onclick="togglePreview()" style="padding:2px 8px;font-size:9px;" id="previewToggleBtn">Hide Slides</button>
+    </div>
+    <!-- Video Player (pinned above slides) -->
+    <div class="video-player" id="videoPlayer">
+      <div class="vp-header" onclick="toggleVideoPlayer()">
+        <span>&#x25B6; Video Reference</span>
+        <span id="vpToggle" style="font-size:9px;color:var(--text3);">&#9660;</span>
+      </div>
+      <div class="vp-body" id="vpBody">
+        <input type="text" id="videoUrl" placeholder="Paste video URL (Frame.io, YouTube, direct...)" oninput="loadVideo(this.value)">
+        <div id="videoContainer"><div style="text-align:center;padding:20px;color:var(--text3);font-size:11px;">Paste a video URL above</div></div>
+        <div class="vp-controls">
+          <button class="btn btn-sm btn-outline" id="vpSeekBack" onclick="videoSeek(-5)">-5s</button>
+          <button class="btn btn-sm btn-outline" id="vpPlayPause" onclick="videoPlayPause()">&#x23EF;</button>
+          <button class="btn btn-sm btn-outline" id="vpSeekFwd" onclick="videoSeek(5)">+5s</button>
+          <span class="vp-tc" id="videoTimecode">00:00</span>
+          <button class="stamp-btn" onclick="stampTimecode()">Stamp Timecode</button>
+        </div>
+        <div id="vpModeHint" style="font-size:9px;color:var(--text3);margin-top:4px;text-align:center;display:none;"></div>
+      </div>
+    </div>
+    <div class="preview-scroll" id="previewScroll"></div>
+  </div>
+
+</div>
+
+<div class="status-bar">
+  <div class="stats">
+    <span id="statSessions">0 sessions</span>
+    <span id="statSlides">0 slides</span>
+    <span id="statTypes"></span>
+  </div>
+  <div>
+    <kbd>&#8593;</kbd><kbd>&#8595;</kbd> navigate &nbsp; <kbd>N</kbd> new slide &nbsp; <kbd>S</kbd> new session
+  </div>
+</div>
+
+<!-- Full-size preview modal -->
+<div class="preview-modal" id="previewModal" onclick="closePreviewModal()">
+  <div class="preview-modal-inner" id="previewModalContent" onclick="event.stopPropagation()"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Version History Modal -->
+<div class="delete-modal-overlay" id="versionModal">
+  <div class="delete-modal" style="max-width:480px;">
+    <h3 id="versionModalTitle">Version History</h3>
+    <div id="versionModalBody" class="version-list">
+      <p style="color:var(--text3);font-size:12px;text-align:center;padding:20px;">Loading...</p>
+    </div>
+    <div class="delete-modal-actions" style="margin-top:16px;">
+      <button class="btn-cancel" onclick="closeVersionModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Course Modal -->
+<div class="delete-modal-overlay" id="deleteModal">
+  <div class="delete-modal">
+    <h3>Delete Course</h3>
+    <p id="deleteModalMsg">This will permanently remove this course from your local storage. Any unpublished changes will be lost.</p>
+    <div class="delete-modal-actions">
+      <button class="btn-cancel" onclick="closeDeleteModal()">Cancel</button>
+      <button class="btn-delete" id="deleteModalConfirm">Delete</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// STATE
+// ============================================================
+var course = { name:'', id:'', teacher:'', sessions:[] };
+var sel = { si:0, sli:0 }; // selected session/slide index
+var FILE_NAMES = {
+  'et_text.json': 'Essential Theology',
+  'sn_text.json': 'Scripture Narrative',
+  'bf_text.json': 'Biblical Finances',
+  'wt_text.json': 'World Theology'
+};
+var TYPES = ['body','list','quote','scripture','statement','illustration','graphic','chart','table'];
+var TYPE_COLORS = {body:'#5b9bd5',list:'#8b5cf6',quote:'#d97706',scripture:'#6bcb77',statement:'#ec4899',illustration:'#14b8a6',graphic:'#f59e0b',chart:'#06b6d4',table:'#a855f7'};
+var BLOCK_TYPES = ['body','scripture','list','quote','table','illustration','graphic'];
+
+// ============================================================
+// INIT
+// ============================================================
+var AUTOSAVE_KEY = 'classroom_builder_autosave';
+var saveTimer = null;
+
+(function init() {
+  // Restore from localStorage if available
+  var saved = localStorage.getItem(AUTOSAVE_KEY);
+  if (saved) {
+    try {
+      var data = JSON.parse(saved);
+      course.name = data.name || '';
+      course.id = data.id || '';
+      course.teacher = data.teacher || '';
+      course.sessions = data.sessions || [];
+      if (course.sessions.length === 0) course.sessions.push(makeSession(''));
+      document.getElementById('courseName').value = course.name;
+      document.getElementById('courseId').value = course.id;
+      document.getElementById('courseTeacher').value = course.teacher;
+    } catch(e) {
+      course.sessions.push(makeSession(''));
+    }
+  } else {
+    course.sessions.push(makeSession(''));
+  }
+  select(0,0);
+  renderAll();
+
+  // Update FILE_NAMES from current course if loaded
+  if (course.id && course.name) {
+    FILE_NAMES[course.id + '_text.json'] = course.name;
+  }
+  // Load course list from GitHub
+  loadWatchFolder();
+
+  // Keyboard shortcuts
+  document.addEventListener('keydown', function(e) {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    if (e.key === 'ArrowDown' || e.key === 'j') { navNext(); e.preventDefault(); }
+    if (e.key === 'ArrowUp' || e.key === 'k') { navPrev(); e.preventDefault(); }
+    if (e.key === 'n' || e.key === 'N') { addSlideAfter(); e.preventDefault(); }
+    if (e.key === 's' && !e.metaKey && !e.ctrlKey) { addSession(); e.preventDefault(); }
+  });
+})();
+
+// ============================================================
+// AUTOSAVE
+// ============================================================
+var syncTimer = null;
+function setSaveState(state) {
+  var el = document.getElementById('saveStatus');
+  var dot = document.getElementById('saveDot');
+  if (state === 'saving') {
+    dot.style.background = 'var(--gold)';
+    el.style.color = 'var(--gold)';
+    el.innerHTML = '<span id="saveDot" style="width:8px;height:8px;border-radius:50%;background:var(--gold);display:inline-block;transition:background .3s;"></span> Saving...';
+  } else if (state === 'saved') {
+    el.style.color = 'var(--green)';
+    el.innerHTML = '<span id="saveDot" style="width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block;transition:background .3s;"></span> Saved';
+  } else if (state === 'syncing') {
+    el.style.color = 'var(--gold)';
+    el.innerHTML = '<span id="saveDot" style="width:8px;height:8px;border-radius:50%;background:var(--gold);display:inline-block;transition:background .3s;animation:pulse .8s infinite alternate;"></span> Syncing to GitHub...';
+  } else if (state === 'synced') {
+    el.style.color = 'var(--green)';
+    el.innerHTML = '<span id="saveDot" style="width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block;transition:background .3s;"></span> Synced to GitHub';
+    setTimeout(function() { setSaveState('saved'); }, 2500);
+  } else if (state === 'error') {
+    el.style.color = 'var(--red)';
+    el.innerHTML = '<span id="saveDot" style="width:8px;height:8px;border-radius:50%;background:var(--red);display:inline-block;"></span> Sync failed';
+    setTimeout(function() { setSaveState('saved'); }, 3000);
+  }
+}
+
+function scheduleAutosave() {
+  if (saveTimer) clearTimeout(saveTimer);
+  setSaveState('saving');
+  saveTimer = setTimeout(function() {
+    // Local save (instant)
+    var data = { name:course.name, id:course.id, teacher:course.teacher, sessions:course.sessions };
+    localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(data));
+    // Also save to csb_ key so it appears in Courses panel
+    if (course.id && course.name) {
+      localStorage.setItem('csb_' + course.id, JSON.stringify(data));
+    }
+    setSaveState('saved');
+
+    // Debounced GitHub save (every 10s of inactivity)
+    if (syncTimer) clearTimeout(syncTimer);
+    if (course.id) {
+      syncTimer = setTimeout(async function() {
+        try {
+          setSaveState('syncing');
+          var exportData = buildExport();
+          await saveToGitHub(course.id, exportData);
+          setSaveState('synced');
+        } catch(e) {
+          setSaveState('error');
+        }
+      }, 10000);
+    }
+  }, 500);
+}
+
+// ============================================================
+// EXPORT PDF (print-formatted)
+// ============================================================
+function exportPDF() {
+  var w = window.open('', '_blank');
+  var html = '<!DOCTYPE html><html><head><title>' + esc(course.name) + ' - Course Slides</title>';
+  html += '<style>';
+  html += 'body{font-family:-apple-system,sans-serif;max-width:850px;margin:40px auto;color:#222;line-height:1.6;}';
+  html += 'h1{font-size:24px;border-bottom:3px solid #5774fd;padding-bottom:8px;margin-bottom:4px;}';
+  html += '.meta{color:#666;font-size:13px;margin-bottom:20px;}';
+  html += '.meta span{margin-right:20px;}';
+  html += 'h2{font-size:18px;color:#333;margin-top:36px;border-bottom:1px solid #ddd;padding-bottom:6px;}';
+  html += '.slide{background:#f9f9f9;border:1px solid #ddd;border-radius:8px;padding:14px 18px;margin:12px 0;page-break-inside:avoid;}';
+  html += '.slide-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}';
+  html += '.slide-type{font-size:10px;font-weight:700;text-transform:uppercase;padding:2px 10px;border-radius:10px;color:#fff;}';
+  html += '.slide-tc{font-family:monospace;font-size:12px;color:#5774fd;font-weight:600;}';
+  html += '.slide-title{font-size:15px;font-weight:600;margin-bottom:6px;}';
+  html += '.slide-body{font-size:13px;color:#444;white-space:pre-wrap;line-height:1.6;}';
+  html += '.block-label{font-size:9px;font-weight:700;text-transform:uppercase;color:#999;margin-top:10px;margin-bottom:3px;letter-spacing:0.5px;}';
+  html += '.ref{font-style:italic;color:#666;font-size:12px;margin-top:2px;}';
+  html += '.slide-img{width:100%;border-radius:4px;margin:6px 0;}';
+  html += '.img-grid{display:grid;gap:6px;margin:6px 0;}';
+  html += '.img-grid.cols-1{grid-template-columns:1fr;}';
+  html += '.img-grid.cols-2{grid-template-columns:1fr 1fr;}';
+  html += '.img-grid img{width:100%;height:auto;border-radius:4px;object-fit:cover;}';
+  html += '.graphic-brief{background:#fff3cd;border:1px solid #ffc107;border-radius:4px;padding:8px 12px;font-size:12px;color:#856404;margin:6px 0;}';
+  html += '.toc{margin:20px 0;padding:16px;background:#f5f5f5;border-radius:8px;}';
+  html += '.toc h3{font-size:14px;margin-bottom:8px;color:#333;}';
+  html += '.toc-item{font-size:12px;color:#555;padding:2px 0;}';
+  html += '@media print{body{margin:20px;}.slide{break-inside:avoid;}}';
+  html += '</style></head><body>';
+
+  // Header
+  html += '<h1>' + esc(course.name) + '</h1>';
+  html += '<div class="meta">';
+  html += '<span><strong>Instructor:</strong> ' + esc(course.teacher) + '</span>';
+  html += '<span><strong>Course ID:</strong> ' + esc(course.id) + '</span>';
+  html += '<span><strong>Sessions:</strong> ' + course.sessions.length + '</span>';
+  var totalSlideCount = 0; course.sessions.forEach(function(s) { totalSlideCount += s.slides.length; });
+  html += '<span><strong>Total Slides:</strong> ' + totalSlideCount + '</span>';
+  html += '<span><strong>Generated:</strong> ' + new Date().toLocaleDateString() + '</span>';
+  html += '</div>';
+
+  // Table of Contents
+  html += '<div class="toc"><h3>Table of Contents</h3>';
+  course.sessions.forEach(function(session, si) {
+    html += '<div class="toc-item">Session ' + (si+1) + ': ' + esc(session.label) + ' (' + session.slides.length + ' slides)</div>';
+  });
+  html += '</div>';
+
+  // Sessions and slides
+  course.sessions.forEach(function(session, si) {
+    html += '<h2>Session ' + (si+1) + ': ' + esc(session.label) + '</h2>';
+    session.slides.forEach(function(slide, sli) {
+      var tc = TYPE_COLORS[slide.type] || '#888';
+      html += '<div class="slide">';
+      html += '<div class="slide-head"><span class="slide-type" style="background:' + tc + '">' + slide.type + '</span>';
+      html += '<span style="font-size:11px;color:#aaa;">Slide ' + (sli+1) + '</span>';
+      if (slide.timecode) html += '<span class="slide-tc">' + esc(slide.timecode) + '</span>';
+      html += '</div>';
+      if (slide.title) html += '<div class="slide-title">' + esc(slide.title) + '</div>';
+
+      // Collect illustrations for grid
+      var illustrations = [];
+      (slide.blocks||[]).forEach(function(block) {
+        if (block.type === 'illustration') {
+          if (block.imageData) illustrations.push(block);
+          return;
+        }
+        html += '<div class="block-label">' + block.type + '</div>';
+        if (block.type === 'graphic') {
+          html += '<div class="graphic-brief"><strong>Designer Brief:</strong> ' + esc(block.text || 'No description') + '</div>';
+          if (block.imageData) html += '<div style="margin-top:4px;"><em style="font-size:10px;color:#888;">Reference:</em><br><img src="' + block.imageData + '" style="max-width:200px;border-radius:4px;opacity:0.7;"></div>';
+        } else {
+          if (block.text) html += '<div class="slide-body">' + esc(block.text) + '</div>';
+          if (block.reference) html += '<div class="ref">' + esc(block.reference) + '</div>';
+          if (block.attribution) html += '<div class="ref">' + esc(block.attribution) + '</div>';
+        }
+      });
+
+      // Render illustration grid
+      if (illustrations.length > 0) {
+        html += '<div class="block-label">illustration</div>';
+        var cols = illustrations.length >= 2 ? 2 : 1;
+        html += '<div class="img-grid cols-' + cols + '">';
+        illustrations.forEach(function(ill) {
+          html += '<img src="' + ill.imageData + '">';
+        });
+        html += '</div>';
+        if (illustrations[0].caption) html += '<div class="ref">' + esc(illustrations[0].caption) + '</div>';
+      }
+
+      html += '</div>';
+    });
+  });
+
+  html += '</body></html>';
+  w.document.write(html);
+  w.document.close();
+  setTimeout(function() { w.print(); }, 500);
+}
+
+// ============================================================
+// EXPORT GOOGLE DOCS (formatted text for paste)
+// ============================================================
+function exportGoogleDocs() {
+  // Build rich HTML that Google Docs can import
+  var html = '<html><body>';
+  html += '<h1>' + esc(course.name) + ' | VOD Slide Build Out</h1>';
+  html += '<p><b>Instructor:</b> ' + esc(course.teacher) + ' &nbsp;|&nbsp; <b>Course ID:</b> ' + esc(course.id) + ' &nbsp;|&nbsp; <b>Date:</b> ' + new Date().toLocaleDateString() + '</p><hr>';
+
+  course.sessions.forEach(function(session, si) {
+    html += '<h2>Session ' + (si+1) + ': ' + esc(session.label) + '</h2>';
+    session.slides.forEach(function(slide, sli) {
+      html += '<h3>Slide ' + (sli+1) + ': ' + esc(slide.title || 'Untitled') + ' <span style="color:#888;">[' + slide.type.toUpperCase() + ']</span>';
+      if (slide.timecode) html += ' <span style="color:#5774fd;font-family:monospace;">(' + esc(slide.timecode) + ')</span>';
+      html += '</h3>';
+
+      (slide.blocks||[]).forEach(function(block) {
+        if (block.type === 'scripture') {
+          if (block.reference) html += '<p><b>' + esc(block.reference) + '</b></p>';
+          if (block.text) html += '<p><i>"' + esc(block.text) + '"</i></p>';
+        } else if (block.type === 'list') {
+          html += '<ul>';
+          (block.text||'').split('\n').forEach(function(item) {
+            if (item.trim()) html += '<li>' + esc(item.trim()) + '</li>';
+          });
+          html += '</ul>';
+        } else if (block.type === 'quote') {
+          if (block.text) html += '<blockquote style="border-left:3px solid #ccc;padding-left:12px;color:#555;"><i>"' + esc(block.text) + '"</i></blockquote>';
+          if (block.attribution) html += '<p style="color:#888;">' + esc(block.attribution) + '</p>';
+        } else if (block.type === 'table' && block.tableData) {
+          html += '<table border="1" cellpadding="6" style="border-collapse:collapse;">';
+          html += '<tr>';
+          block.tableData.headers.forEach(function(h) { html += '<th style="background:#eee;">' + esc(h) + '</th>'; });
+          html += '</tr>';
+          block.tableData.rows.forEach(function(row) {
+            html += '<tr>';
+            row.forEach(function(cell) { html += '<td>' + esc(cell) + '</td>'; });
+            html += '</tr>';
+          });
+          html += '</table>';
+        } else if (block.type === 'graphic') {
+          html += '<p style="background:#fff3cd;padding:8px;border:1px solid #ffc107;border-radius:4px;"><b>Designer Brief:</b> ' + esc(block.text || '') + '</p>';
+        } else if (block.text) {
+          html += '<p>' + esc(block.text) + '</p>';
+        }
+      });
+      html += '<hr style="border:none;border-top:1px solid #eee;">';
+    });
+  });
+  html += '</body></html>';
+
+  // Copy rich HTML to clipboard for paste into Google Docs
+  var blob = new Blob([html], {type:'text/html'});
+  var clipItem = new ClipboardItem({'text/html': blob});
+  navigator.clipboard.write([clipItem]).then(function() {
+    toast('Rich content copied! Open Google Docs and press Cmd+V');
+    window.open('https://docs.google.com/document/create', '_blank');
+  }).catch(function() {
+    // Fallback: open as HTML file they can import
+    var w = window.open('', '_blank');
+    w.document.write(html);
+    w.document.close();
+    toast('Content opened in new tab — copy/paste into Google Docs');
+  });
+}
+
+// ============================================================
+// DATA HELPERS
+// ============================================================
+function makeSession(label) {
+  return { label:label, slides:[makeSlide()] };
+}
+function makeSlide() {
+  return { type:'body', title:'', timecode:'', blocks:[{type:'body',text:''}] };
+}
+function curSlide() {
+  if (!course.sessions[sel.si]) return null;
+  return course.sessions[sel.si].slides[sel.sli] || null;
+}
+function totalSlides() {
+  var n=0; course.sessions.forEach(function(s){n+=s.slides.length;}); return n;
+}
+
+// ============================================================
+// SELECTION
+// ============================================================
+function select(si, sli) {
+  sel.si = si; sel.sli = sli;
+  renderAll();
+}
+
+function navNext() {
+  var s = course.sessions[sel.si];
+  if (sel.sli < s.slides.length - 1) { select(sel.si, sel.sli + 1); }
+  else if (sel.si < course.sessions.length - 1) { select(sel.si + 1, 0); }
+}
+function navPrev() {
+  if (sel.sli > 0) { select(sel.si, sel.sli - 1); }
+  else if (sel.si > 0) { var ps = course.sessions[sel.si - 1]; select(sel.si - 1, ps.slides.length - 1); }
+}
+
+// ============================================================
+// RENDER ALL
+// ============================================================
+function renderAll() {
+  renderNav();
+  renderEditor();
+  renderPreviews();
+  updateStats();
+}
+
+// ============================================================
+// NAV PANEL
+// ============================================================
+function renderNav() {
+  var html = '';
+  var globalIdx = 0;
+  course.sessions.forEach(function(session, si) {
+    html += '<div class="nav-session">';
+    html += '<div class="nav-session-title" onclick="toggleSessionCollapse(' + si + ')">';
+    html += '<span>S' + (si+1) + ': ' + (session.label || 'Untitled') + '</span>';
+    html += '<span style="font-size:9px;color:var(--text3)">' + session.slides.length + '</span>';
+    html += '</div>';
+    if (!session._collapsed) {
+      session.slides.forEach(function(slide, sli) {
+        var isActive = (si === sel.si && sli === sel.sli);
+        // Label hierarchy: title → first block text preview → type name
+        var navLabel = '';
+        if (slide.title) {
+          navLabel = slide.title;
+        } else {
+          var firstText = '';
+          for (var bi = 0; bi < (slide.blocks || []).length; bi++) {
+            var bt = (slide.blocks[bi].text || slide.blocks[bi].reference || '').trim();
+            if (bt) { firstText = bt; break; }
+          }
+          navLabel = firstText || (slide.type.charAt(0).toUpperCase() + slide.type.slice(1));
+        }
+        if (navLabel.length > 22) navLabel = navLabel.substring(0, 20) + '\u2026';
+        html += '<div class="nav-slide' + (isActive ? ' active' : '') + '" onclick="select(' + si + ',' + sli + ')" title="' + esc(slide.title || 'Slide ' + (sli+1)) + '" draggable="true" ondragstart="onNavDragStart(event,' + si + ',' + sli + ')" ondragend="onNavDragEnd(event)" ondragover="onNavDragOver(event)" ondrop="onNavDrop(event,' + si + ',' + sli + ')">';
+        if (_navMultiSelect) {
+          var checked = _navSelected.indexOf(si + '_' + sli) !== -1 ? ' checked' : '';
+          html += '<input type="checkbox"' + checked + ' onclick="event.stopPropagation();toggleNavSelect(' + si + ',' + sli + ')" style="margin:0;flex-shrink:0;accent-color:var(--blurple-500);">';
+        }
+        html += '<span class="type-dot" style="background:' + (TYPE_COLORS[slide.type] || '#888') + '"></span>';
+        html += '<span class="slide-label">' + (sli+1) + '. ' + esc(navLabel) + '</span>';
+        if (slide.timecode) html += '<span style="font-size:8px;color:var(--text3);font-family:monospace;">' + esc(slide.timecode) + '</span>';
+        html += '<span class="nav-slide-del" onclick="event.stopPropagation();deleteSlideAt(' + si + ',' + sli + ')" title="Delete slide">&times;</span>';
+        html += '</div>';
+        globalIdx++;
+      });
+      html += '<button class="nav-add-btn" onclick="addSlideToSession(' + si + ')">+ slide</button>';
+    }
+    html += '</div>';
+  });
+  html += '<button class="nav-add-btn" onclick="addSession()" style="margin-top:6px;">+ session</button>';
+  document.getElementById('navScroll').innerHTML = html;
+  document.getElementById('navCount').textContent = totalSlides() + ' slides';
+}
+
+// Multi-select + delete from nav
+var _navMultiSelect = false;
+var _navSelected = []; // array of 'si_sli' strings
+
+function toggleNavMultiSelect() {
+  _navMultiSelect = !_navMultiSelect;
+  _navSelected = [];
+  document.getElementById('navBulkActions').style.display = _navMultiSelect ? 'flex' : 'none';
+  document.getElementById('navSelectBtn').textContent = _navMultiSelect ? 'Done' : 'Select';
+  document.getElementById('navSelectBtn').style.color = _navMultiSelect ? 'var(--blurple-300)' : 'var(--text3)';
+  renderNav();
+}
+
+function toggleNavSelect(si, sli) {
+  var key = si + '_' + sli;
+  var idx = _navSelected.indexOf(key);
+  if (idx === -1) _navSelected.push(key);
+  else _navSelected.splice(idx, 1);
+}
+
+function deleteSelectedSlides() {
+  if (_navSelected.length === 0) { toast('No slides selected'); return; }
+  if (!confirm('Delete ' + _navSelected.length + ' slide' + (_navSelected.length > 1 ? 's' : '') + '? This cannot be undone.')) return;
+  // Sort descending so we delete from the end first (prevents index shifting)
+  var sorted = _navSelected.map(function(k) {
+    var parts = k.split('_');
+    return { si: parseInt(parts[0]), sli: parseInt(parts[1]) };
+  }).sort(function(a, b) {
+    return b.si !== a.si ? b.si - a.si : b.sli - a.sli;
+  });
+  sorted.forEach(function(item) {
+    var session = course.sessions[item.si];
+    if (session && session.slides.length > item.sli) {
+      session.slides.splice(item.sli, 1);
+    }
+  });
+  // Clean up empty sessions
+  course.sessions = course.sessions.filter(function(s) { return s.slides.length > 0; });
+  if (course.sessions.length === 0) course.sessions.push(makeSession(''));
+  sel.si = 0; sel.sli = 0;
+  _navSelected = [];
+  _navMultiSelect = false;
+  document.getElementById('navBulkActions').style.display = 'none';
+  document.getElementById('navSelectBtn').textContent = 'Select';
+  renderAll();
+  scheduleAutosave();
+  toast('Deleted ' + sorted.length + ' slide' + (sorted.length > 1 ? 's' : ''));
+}
+
+function deleteSlideAt(si, sli) {
+  var session = course.sessions[si];
+  if (!session) return;
+  var label = session.slides[sli].title || 'Slide ' + (sli + 1);
+  if (!confirm('Delete "' + label + '"?')) return;
+  session.slides.splice(sli, 1);
+  if (session.slides.length === 0) {
+    course.sessions.splice(si, 1);
+    if (course.sessions.length === 0) course.sessions.push(makeSession(''));
+  }
+  if (sel.si >= course.sessions.length) sel.si = course.sessions.length - 1;
+  if (sel.sli >= course.sessions[sel.si].slides.length) sel.sli = Math.max(0, course.sessions[sel.si].slides.length - 1);
+  renderAll();
+  scheduleAutosave();
+  toast('Deleted slide');
+}
+
+function toggleSessionCollapse(si) {
+  course.sessions[si]._collapsed = !course.sessions[si]._collapsed;
+  renderNav();
+}
+
+// ============================================================
+// EDITOR PANEL
+// ============================================================
+function renderEditor() {
+  var slide = curSlide();
+  var container = document.getElementById('slideEditorContainer');
+  if (!slide) {
+    container.innerHTML = '<div class="empty-state"><h3>No slide selected</h3><p>Add a session to get started</p></div>';
+    return;
+  }
+
+  var session = course.sessions[sel.si];
+  var html = '<div class="slide-editor">';
+
+  // Session title
+  html += '<div class="row" style="margin-bottom:12px;"><div class="field"><label>Session Title</label><input type="text" value="' + esc(session.label) + '" oninput="course.sessions[' + sel.si + '].label=this.value;scheduleAutosave();refreshLive()" placeholder="e.g. The Trinity"></div></div>';
+
+  // Header
+  html += '<div class="slide-editor-header">';
+  html += '<h2>S' + (sel.si+1) + ' &middot; Slide ' + (sel.sli+1) + ' of ' + session.slides.length + '</h2>';
+  html += '<div class="slide-nav">';
+  html += '<button class="btn btn-sm btn-outline" onclick="navPrev()" title="Previous slide">Prev</button>';
+  html += '<button class="btn btn-sm btn-outline" onclick="navNext()" title="Next slide">Next</button>';
+  html += '<button class="btn btn-sm btn-outline" onclick="duplicateSlide()" title="Duplicate this slide">Duplicate</button>';
+  html += '<button class="btn btn-sm btn-red" onclick="deleteSlide()" title="Delete this slide">Delete</button>';
+  html += '</div></div>';
+
+  // Type pills
+  html += '<div class="row"><div class="field"><label>Slide Type</label><div class="type-pills">';
+  TYPES.forEach(function(t) {
+    html += '<span class="type-pill' + (slide.type === t ? ' active' : '') + '" data-t="' + t + '" onclick="setType(\'' + t + '\')">' + t.charAt(0).toUpperCase() + t.slice(1) + '</span>';
+  });
+  html += '</div></div></div>';
+
+  // Title + Timecode (Statement hides title — the body IS the statement)
+  if (slide.type === 'statement') {
+    html += '<div class="row">';
+    html += '<div class="field"><span style="font-size:10px;color:var(--text3);font-style:italic;">Statement slides have no title — the body text is the statement</span></div>';
+    html += '<div class="field-xs"><label>Timecode</label><input type="text" class="timecode" placeholder="MM:SS" value="' + esc(slide.timecode) + '" oninput="curSlide().timecode=this.value;refreshLive()"></div>';
+    html += '</div>';
+  } else {
+    html += '<div class="row">';
+    html += '<div class="field"><label>Title</label><input type="text" value="' + esc(slide.title) + '" oninput="curSlide().title=this.value;refreshLive()"></div>';
+    html += '<div class="field-xs"><label>Timecode</label><input type="text" class="timecode" placeholder="MM:SS" value="' + esc(slide.timecode) + '" oninput="curSlide().timecode=this.value;refreshLive()"></div>';
+    html += '</div>';
+  }
+
+  // Content blocks
+  html += '<label style="margin-top:8px;">Content Blocks</label>';
+  html += '<div class="content-blocks">';
+  (slide.blocks || []).forEach(function(block, bi) {
+    html += buildBlockEditor(block, bi);
+  });
+  html += '</div>';
+
+  // Add content block buttons
+  html += '<div class="add-block-row">';
+  BLOCK_TYPES.forEach(function(bt) {
+    html += '<button class="add-block-btn" onclick="addBlock(\'' + bt + '\')">+ ' + bt + '</button>';
+  });
+  html += '</div>';
+
+  // Footer preview (auto-populated, read-only)
+  var footerL = course.name || 'Course Name';
+  var footerC = (sel.sli + 1).toString();
+  var footerR = session.label || 'Session Title';
+  html += '<div class="footer-preview"><span>' + esc(footerL) + '</span><span>' + footerC + '</span><span>' + esc(footerR) + '</span></div>';
+
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+function buildBlockEditor(block, bi) {
+  var cls = 'cb-' + block.type;
+  var html = '<div class="content-block ' + cls + '">';
+  html += '<div class="content-block-header">';
+  html += '<span class="content-block-type">' + block.type.toUpperCase() + '</span>';
+  html += '<div style="display:flex;gap:4px;">';
+  if (bi > 0) html += '<button class="btn btn-sm btn-outline" onclick="moveBlock(' + bi + ',-1)">Up</button>';
+  html += '<button class="btn btn-sm btn-outline" onclick="moveBlock(' + bi + ',1)">Down</button>';
+  html += '<button class="btn btn-sm btn-red" onclick="removeBlock(' + bi + ')">Remove</button>';
+  html += '</div></div>';
+
+  if (block.type === 'body' || block.type === 'quote') {
+    html += '<textarea rows="3" oninput="curSlide().blocks[' + bi + '].text=this.value;refreshLive()">' + esc(block.text || '') + '</textarea>';
+    if (block.type === 'quote') {
+      html += '<div style="margin-top:4px;"><label>Attribution</label><input type="text" value="' + esc(block.attribution || '') + '" oninput="curSlide().blocks[' + bi + '].attribution=this.value;refreshLive()" placeholder="e.g. C.S. Lewis"></div>';
+    }
+  } else if (block.type === 'scripture') {
+    html += '<div class="field" style="margin-bottom:6px;"><label>Reference <span style="font-weight:400;color:var(--text3);font-size:9px;">KJV auto-lookup</span></label>';
+    html += '<div style="display:flex;gap:6px;align-items:center;"><input type="text" id="scrRef_' + bi + '" value="' + esc(block.reference || '') + '" style="flex:1;margin:0;" oninput="onScrRefInput(' + bi + ',this)" onpaste="setTimeout(function(){onScrRefInput(' + bi + ',document.getElementById(\'scrRef_' + bi + '\'))},50)" onkeydown="onScrRefKey(event,' + bi + ')" placeholder="e.g. John 3:16" autocomplete="off">';
+    html += '<button onclick="lookupScripture(' + bi + ')" style="font-size:11px;padding:7px 14px;background:var(--blurple-500);color:#fff;border:none;border-radius:var(--radius);cursor:pointer;white-space:nowrap;font-weight:500;">Lookup</button></div>';
+    html += '<div id="scrSuggest_' + bi + '" style="display:none;font-size:11px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius);margin-top:2px;max-height:120px;overflow-y:auto;"></div></div>';
+    html += '<textarea rows="2" id="scrText_' + bi + '" placeholder="Verse text (auto-fills on lookup)" oninput="curSlide().blocks[' + bi + '].text=this.value;refreshLive()">' + esc(block.text || '') + '</textarea>';
+  } else if (block.type === 'list') {
+    html += '<textarea rows="4" placeholder="One item per line" oninput="curSlide().blocks[' + bi + '].text=this.value;refreshLive()">' + esc(block.text || '') + '</textarea>';
+  } else if (block.type === 'table') {
+    // Parse existing table data or start with 2x2
+    var tableData = block.tableData || {headers:['Header 1','Header 2'], rows:[['','']]};
+    if (!block.tableData) { block.tableData = tableData; }
+    var numCols = tableData.headers.length;
+    html += '<div style="overflow-x:auto;">';
+    html += '<table style="width:100%;border-collapse:collapse;font-size:12px;">';
+    // Headers
+    html += '<tr>';
+    tableData.headers.forEach(function(h, ci) {
+      html += '<th style="padding:6px 8px;background:var(--blurple-950);border:1px solid var(--border);font-weight:600;color:var(--blurple-300);"><input type="text" value="' + esc(h) + '" style="background:transparent;border:none;color:var(--blurple-300);font-weight:600;font-size:12px;width:100%;padding:0;" oninput="updateTableHeader(' + bi + ',' + ci + ',this.value)"></th>';
+    });
+    html += '<th style="width:30px;border:none;background:transparent;"></th></tr>';
+    // Rows
+    tableData.rows.forEach(function(row, ri) {
+      html += '<tr>';
+      row.forEach(function(cell, ci) {
+        html += '<td style="padding:4px 8px;border:1px solid var(--border);"><input type="text" value="' + esc(cell) + '" style="background:transparent;border:none;color:var(--text);font-size:12px;width:100%;padding:0;" oninput="updateTableCell(' + bi + ',' + ri + ',' + ci + ',this.value)"></td>';
+      });
+      html += '<td style="border:none;width:30px;text-align:center;"><button class="btn btn-sm btn-red" style="padding:2px 6px;font-size:9px;" onclick="removeTableRow(' + bi + ',' + ri + ')">x</button></td></tr>';
+    });
+    html += '</table></div>';
+    // Add row / Add column buttons
+    html += '<div style="display:flex;gap:6px;margin-top:6px;">';
+    html += '<button class="btn btn-sm btn-outline" onclick="addTableRow(' + bi + ')">+ Row</button>';
+    html += '<button class="btn btn-sm btn-outline" onclick="addTableCol(' + bi + ')">+ Column</button>';
+    if (numCols > 1) html += '<button class="btn btn-sm btn-outline" style="margin-left:auto;" onclick="removeTableCol(' + bi + ')">- Column</button>';
+    html += '</div>';
+  } else if (block.type === 'illustration') {
+    var hasImg = block.imageData;
+    // Aspect + Framing on one line
+    var ar = block.aspect || 'auto';
+    var fit = block.fit || 'cover';
+    html += '<div style="display:flex;gap:4px;align-items:center;margin-bottom:8px;flex-wrap:wrap;">';
+    html += '<label style="margin:0;flex-shrink:0;font-size:9px;">Aspect</label>';
+    ['auto','16:9','4:3','1:1','9:16'].forEach(function(opt) {
+      var isActive = (ar === opt);
+      html += '<span style="padding:2px 6px;border-radius:8px;font-size:9px;cursor:pointer;border:1px solid ' + (isActive ? 'var(--blurple-400)' : 'var(--border)') + ';background:' + (isActive ? 'var(--blurple-500)' : 'transparent') + ';color:' + (isActive ? '#fff' : 'var(--text3)') + ';" onclick="setBlockAspect(' + bi + ',\'' + opt + '\')">' + opt + '</span>';
+    });
+    html += '<span style="color:var(--border);margin:0 2px;">|</span>';
+    html += '<label style="margin:0;flex-shrink:0;font-size:9px;">Frame</label>';
+    [['cover','Fill'],['contain','Fit'],['top','Top'],['bottom','Bottom'],['left','Left'],['right','Right'],['center','Center']].forEach(function(opt) {
+      var isActive = (fit === opt[0]);
+      html += '<span style="padding:2px 6px;border-radius:8px;font-size:9px;cursor:pointer;border:1px solid ' + (isActive ? 'var(--blurple-400)' : 'var(--border)') + ';background:' + (isActive ? 'var(--blurple-500)' : 'transparent') + ';color:' + (isActive ? '#fff' : 'var(--text3)') + ';" onclick="setBlockFit(' + bi + ',\'' + opt[0] + '\')">' + opt[1] + '</span>';
+    });
+    html += '</div>';
+    // Image area — constrained height, full width
+    var arVal = ar === 'auto' ? '16/9' : ar.replace(':','/');
+    var fitStyle = fit === 'contain' ? 'object-fit:contain;background:#111;' : 'object-fit:cover;object-position:' + (fit === 'cover' ? 'center' : fit) + ';';
+    if (hasImg) {
+      html += '<div style="position:relative;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;width:100%;aspect-ratio:' + arVal + ';max-height:300px;">';
+      html += '<img src="' + block.imageData + '" style="width:100%;height:100%;display:block;' + fitStyle + '">';
+      html += '<div style="position:absolute;top:6px;right:6px;display:flex;gap:4px;">';
+      html += '<button class="btn btn-sm btn-outline" style="background:rgba(0,0,0,.6);border-color:transparent;color:#fff;backdrop-filter:blur(4px);" onclick="triggerImageUpload(' + bi + ')">Replace</button>';
+      html += '<button class="btn btn-sm btn-red" style="backdrop-filter:blur(4px);" onclick="clearBlockImage(' + bi + ')">Remove Image</button>';
+      html += '</div></div>';
+    } else {
+      html += '<div class="image-drop" onclick="triggerImageUpload(' + bi + ')" ondragover="event.preventDefault()" ondrop="handleImgDrop(event,' + bi + ')" style="width:100%;aspect-ratio:' + arVal + ';max-height:200px;">';
+      html += '<span>Drop illustration or click to upload</span>';
+      html += '</div>';
+    }
+    html += '<div style="margin-top:6px;"><label>Caption (optional)</label><input type="text" value="' + esc(block.caption || '') + '" oninput="curSlide().blocks[' + bi + '].caption=this.value;refreshLive()"></div>';
+  } else if (block.type === 'graphic') {
+    html += '<div style="margin-bottom:6px;"><label>Designer Brief</label><textarea rows="3" placeholder="Describe what the designer needs to create for this slide..." oninput="curSlide().blocks[' + bi + '].text=this.value;refreshLive()">' + esc(block.text || '') + '</textarea></div>';
+    var hasRef = block.imageData;
+    html += '<div><label>Reference Photo (optional)</label>';
+    if (hasRef) {
+      html += '<div style="position:relative;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;max-height:250px;">';
+      html += '<img src="' + block.imageData + '" style="width:100%;display:block;max-height:250px;object-fit:cover;">';
+      html += '<div style="position:absolute;top:6px;right:6px;display:flex;gap:4px;">';
+      html += '<button class="btn btn-sm btn-outline" style="background:rgba(0,0,0,.6);border-color:transparent;color:#fff;backdrop-filter:blur(4px);" onclick="triggerImageUpload(' + bi + ')">Replace</button>';
+      html += '<button class="btn btn-sm btn-red" style="backdrop-filter:blur(4px);" onclick="clearBlockImage(' + bi + ')">Remove</button>';
+      html += '</div></div>';
+    } else {
+      html += '<div class="image-drop" onclick="triggerImageUpload(' + bi + ')" ondragover="event.preventDefault()" ondrop="handleImgDrop(event,' + bi + ')" style="min-height:50px;">';
+      html += '<span>Drop reference image (optional)</span>';
+      html += '</div>';
+    }
+    html += '</div>';
+  }
+
+  html += '</div>';
+  return html;
+}
+
+// ============================================================
+// PREVIEW PANEL
+// ============================================================
+function renderPreviews() {
+  var html = '';
+  var session = course.sessions[sel.si];
+  if (!session) return;
+
+  // Cover slide (matches plugin's buildCoverSlide)
+  html += buildCoverPreview(sel.si);
+
+  session.slides.forEach(function(slide, sli) {
+    var isActive = (sli === sel.sli);
+    html += buildSlidePreview(slide, sel.si, sli, isActive);
+  });
+
+  document.getElementById('previewScroll').innerHTML = html;
+
+  // Scroll active into view
+  setTimeout(function() {
+    var active = document.querySelector('.slide-preview.active-preview');
+    if (active) active.scrollIntoView({ behavior:'smooth', block:'nearest' });
+  }, 50);
+}
+
+function buildCoverPreview(si) {
+  var session = course.sessions[si];
+  var sessionLabel = session ? session.label : '';
+  var totalSessions = course.sessions.length;
+  var classNum = si + 1;
+  var html = '<div class="slide-preview" style="cursor:default;">';
+  // Centered content: course name (large) + session name (smaller, muted)
+  html += '<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:5% 13%;gap:1.5cqi;">';
+  html += '<div style="font-size:5cqi;font-weight:500;color:var(--slide-body-color);font-family:Georgia,\'Times New Roman\',serif;text-align:center;line-height:1.2;">' + esc(course.name || 'Course Name') + '</div>';
+  if (sessionLabel) {
+    html += '<div style="font-size:1.8cqi;color:var(--slide-body-color);opacity:.6;font-family:-apple-system,sans-serif;text-align:center;">' + esc(sessionLabel) + '</div>';
+  }
+  html += '</div>';
+  // "Class X of Y" near footer
+  html += '<div style="position:absolute;bottom:6%;left:0;right:0;text-align:center;font-size:1.4cqi;color:var(--slide-body-color);opacity:.5;font-family:-apple-system,sans-serif;">Class ' + classNum + ' of ' + totalSessions + '</div>';
+  // Footer
+  html += '<div class="sp-footer"><span class="sp-footer-l">' + esc(course.name || '') + '</span><span class="sp-footer-c"></span><span class="sp-footer-r">' + esc(sessionLabel) + '</span></div>';
+  html += '</div>';
+  return html;
+}
+
+function buildSlidePreview(slide, si, sli, isActive, forModal) {
+  var session = course.sessions[si];
+  var tc = TYPE_COLORS[slide.type] || '#888';
+  var clickAction = forModal ? '' : ' ondblclick="openPreviewModal(' + si + ',' + sli + ')" onclick="select(' + si + ',' + sli + ')"';
+  var cls = forModal ? 'preview-modal-inner' : 'slide-preview' + (isActive ? ' active-preview' : '');
+  var html = '<div class="' + cls + '"' + clickAction + '>';
+
+  // Type badge
+  html += '<span class="sp-type-badge" style="background:' + tc + '">' + slide.type + '</span>';
+
+  // Title (Statement type has no title — body fills the slide)
+  if (slide.title && slide.type !== 'statement') {
+    html += '<div class="sp-title">' + esc(slide.title) + '</div>';
+  }
+
+  // Collect all text for sizing
+  var allText = (slide.blocks || []).map(function(b) { return b.text || ''; }).join(' ');
+  var bSz = bodyFontCqi(allText);
+  var rSz = refFontCqi(allText);
+  // Statement type gets bigger text since there's no title
+  if (slide.type === 'statement') { bSz = Math.min(bSz * 1.3, 3.2); rSz = bSz - 0.42; }
+
+  // Content
+  html += '<div class="sp-content">';
+  (slide.blocks || []).forEach(function(block) {
+    if (block.type === 'body' && block.text) {
+      html += '<div class="sp-body" style="font-size:' + bSz + 'cqi">' + esc(block.text).replace(/\n/g, '<br>') + '</div>';
+    } else if (block.type === 'scripture') {
+      // Match plugin layout: verse text first (centered, serif), reference below (italic, muted, smaller)
+      if (block.text) html += '<div class="sp-scripture-text" style="font-size:' + bSz + 'cqi">&ldquo;' + esc(block.text) + '&rdquo;</div>';
+      if (block.reference) html += '<div class="sp-scripture-ref" style="font-size:' + rSz + 'cqi">' + esc(block.reference) + '</div>';
+    } else if (block.type === 'list' && block.text) {
+      var items = block.text.split('\n').filter(function(l){return l.trim();});
+      items.forEach(function(item) {
+        html += '<div class="sp-list-item" style="font-size:' + bSz + 'cqi">&bull; ' + esc(item) + '</div>';
+      });
+    } else if (block.type === 'quote' && block.text) {
+      html += '<div class="sp-body" style="font-size:' + bSz + 'cqi;font-style:italic;">&ldquo;' + esc(block.text) + '&rdquo;</div>';
+      if (block.attribution) html += '<div class="sp-ref" style="font-size:' + rSz + 'cqi">' + esc(block.attribution) + '</div>';
+    } else if (block.type === 'illustration') {
+      // Illustrations are collected and laid out together after the loop
+    } else if (block.type === 'graphic') {
+      html += '<div class="sp-body" style="font-size:' + rSz + 'cqi;font-style:italic;color:var(--slide-footer-color);">[Graphic: ' + esc(block.text || 'Designer will create') + ']</div>';
+      if (block.imageData) html += '<img src="' + block.imageData + '" style="width:50%;opacity:0.5;border-radius:2px;margin-top:4px;">';
+    }
+  });
+
+  // Collect illustration blocks and render in content zone
+  var illustrations = (slide.blocks || []).filter(function(b) { return b.type === 'illustration' && b.imageData; });
+  if (illustrations.length > 0) {
+    var maxImgs = Math.min(illustrations.length, 4);
+    var cols = maxImgs <= 1 ? 1 : 2;
+    var gap = forModal ? '6px' : '1.5%';
+    // Use flex:1 to fill available space in the content zone
+    html += '<div style="display:grid;grid-template-columns:repeat(' + cols + ',1fr);gap:' + gap + ';width:100%;flex:1;min-height:0;">';
+    for (var ii = 0; ii < maxImgs; ii++) {
+      var ill = illustrations[ii];
+      var illFit = ill.fit || 'cover';
+      var fitCss = illFit === 'contain' ? 'object-fit:contain;' : 'object-fit:cover;object-position:' + (illFit === 'cover' ? 'center' : illFit) + ';';
+      html += '<div style="overflow:hidden;border-radius:1px;min-height:0;">';
+      html += '<img src="' + ill.imageData + '" style="width:100%;height:100%;display:block;' + fitCss + '">';
+      html += '</div>';
+    }
+    html += '</div>';
+    var firstCap = illustrations[0].caption;
+    if (firstCap) html += '<div class="sp-ref" style="font-size:' + rSz + 'cqi;flex-shrink:0;">' + esc(firstCap) + '</div>';
+  }
+
+  html += '</div>';
+
+  // Footer: course name (left) | page num (center) | session title (right)
+  html += '<div class="sp-footer"><span class="sp-footer-l">' + esc(course.name || '') + '</span><span class="sp-footer-c">' + (sli + 1) + '</span><span class="sp-footer-r">' + esc(session.label || '') + '</span></div>';
+  html += '</div>';
+  return html;
+}
+
+// ============================================================
+// ACTIONS
+// ============================================================
+function setType(t) {
+  var slide = curSlide();
+  if (!slide) return;
+  slide.type = t;
+
+  // Map slide type to primary block type
+  var blockType = 'body';
+  if (t === 'scripture') blockType = 'scripture';
+  else if (t === 'list') blockType = 'list';
+  else if (t === 'quote') blockType = 'quote';
+  else if (t === 'table') blockType = 'table';
+  else if (t === 'illustration') blockType = 'illustration';
+  else if (t === 'graphic') blockType = 'graphic';
+
+  // If only one block, convert it to match the new type
+  if (slide.blocks.length <= 1) {
+    var existing = slide.blocks[0] || {};
+    var newBlock = { type: blockType, text: existing.text || '' };
+    if (blockType === 'scripture') { newBlock.reference = existing.reference || ''; }
+    if (blockType === 'quote') { newBlock.attribution = existing.attribution || ''; }
+    if (blockType === 'illustration') { newBlock.imageData = existing.imageData || null; newBlock.caption = existing.caption || ''; newBlock.text = ''; }
+    if (blockType === 'graphic') { newBlock.imageData = existing.imageData || null; }
+    if (blockType === 'table') { newBlock.tableData = {headers:['Header 1','Header 2'], rows:[['','']]}; newBlock.text = ''; }
+    slide.blocks = [newBlock];
+  }
+
+  scheduleAutosave();
+  renderAll();
+}
+
+function addBlock(type) {
+  var slide = curSlide();
+  if (!slide) return;
+  var block = {type:type, text:''};
+  if (type === 'scripture') { block.reference = ''; }
+  if (type === 'quote') { block.attribution = ''; }
+  if (type === 'illustration') { block.imageData = null; block.caption = ''; }
+  if (type === 'graphic') { block.imageData = null; }
+  if (type === 'table') { block.tableData = {headers:['Header 1','Header 2'], rows:[['','']]}; }
+  slide.blocks.push(block);
+  renderEditor();
+  refreshLive();
+}
+
+function removeBlock(bi) {
+  var slide = curSlide();
+  if (!slide) return;
+  slide.blocks.splice(bi, 1);
+  // Always keep at least one block — add empty body if all removed
+  if (slide.blocks.length === 0) {
+    slide.blocks.push({type:'body', text:''});
+    slide.type = 'body';
+  }
+  renderEditor();
+  refreshLive();
+}
+
+function moveBlock(bi, dir) {
+  var slide = curSlide();
+  if (!slide) return;
+  var ni = bi + dir;
+  if (ni < 0 || ni >= slide.blocks.length) return;
+  var tmp = slide.blocks[bi];
+  slide.blocks[bi] = slide.blocks[ni];
+  slide.blocks[ni] = tmp;
+  renderEditor();
+  refreshLive();
+}
+
+function newCourse() {
+  // Save current course first if it has content
+  if (course.id && course.name && course.sessions.length > 0) {
+    var data = { name:course.name, id:course.id, teacher:course.teacher, sessions:course.sessions };
+    localStorage.setItem('csb_' + course.id, JSON.stringify(data));
+  }
+  // Reset to blank
+  course.name = '';
+  course.id = '';
+  course.teacher = '';
+  course.sessions = [makeSession('')];
+  document.getElementById('courseName').value = '';
+  document.getElementById('courseId').value = '';
+  document.getElementById('courseTeacher').value = '';
+  // Clear from autosave
+  localStorage.removeItem(AUTOSAVE_KEY);
+  sel.si = 0; sel.sli = 0;
+  localStorage.removeItem(AUTOSAVE_KEY);
+  renderAll();
+  loadWatchFolder();
+  toast('New course — fill in the details above');
+  // Focus course name
+  setTimeout(function() { document.getElementById('courseName').focus(); }, 100);
+}
+
+function addSession() {
+  course.sessions.push(makeSession(''));
+  select(course.sessions.length - 1, 0);
+}
+
+function addSlideToSession(si) {
+  course.sessions[si].slides.push(makeSlide());
+  select(si, course.sessions[si].slides.length - 1);
+}
+
+function addSlideAfter() {
+  var session = course.sessions[sel.si];
+  if (!session) return;
+  session.slides.splice(sel.sli + 1, 0, makeSlide());
+  select(sel.si, sel.sli + 1);
+}
+
+function duplicateSlide() {
+  var slide = curSlide();
+  if (!slide) return;
+  var copy = JSON.parse(JSON.stringify(slide));
+  course.sessions[sel.si].slides.splice(sel.sli + 1, 0, copy);
+  select(sel.si, sel.sli + 1);
+}
+
+function deleteSlide() {
+  var session = course.sessions[sel.si];
+  if (!session) return;
+  if (session.slides.length === 1 && course.sessions.length === 1) { toast('Need at least one slide'); return; }
+  session.slides.splice(sel.sli, 1);
+  if (session.slides.length === 0) {
+    course.sessions.splice(sel.si, 1);
+    if (sel.si >= course.sessions.length) sel.si = course.sessions.length - 1;
+    sel.sli = 0;
+  } else if (sel.sli >= session.slides.length) {
+    sel.sli = session.slides.length - 1;
+  }
+  renderAll();
+}
+
+function refreshLive() {
+  renderPreviews();
+  renderNav();
+  scheduleAutosave();
+}
+
+function generateCourseId(name) {
+  if (!name) return '';
+  // Take first letter of each word, lowercase
+  var words = name.trim().split(/\s+/);
+  if (words.length === 1) return words[0].substring(0, 4).toLowerCase();
+  return words.map(function(w) { return w.charAt(0); }).join('').toLowerCase();
+}
+
+function onCourseChange() {
+  course.name = document.getElementById('courseName').value;
+  course.id = generateCourseId(course.name);
+  document.getElementById('courseId').value = course.id;
+  course.teacher = document.getElementById('courseTeacher').value;
+  // Update FILE_NAMES map and save immediately so Courses panel updates
+  if (course.id && course.name) {
+    FILE_NAMES[course.id + '_text.json'] = course.name;
+    saveCurrentCourseToLocal();
+    loadWatchFolder(); // Refresh courses list
+  }
+  refreshLive();
+  renderEditor();
+  scheduleAutosave();
+}
+
+// ============================================================
+// IMAGE HANDLING
+// ============================================================
+function triggerImageUpload(bi) {
+  var input = document.createElement('input');
+  input.type = 'file'; input.accept = 'image/*';
+  input.onchange = function() { if (input.files[0]) readImg(input.files[0], bi); };
+  input.click();
+}
+function handleImgDrop(e, bi) {
+  e.preventDefault();
+  if (e.dataTransfer.files[0]) readImg(e.dataTransfer.files[0], bi);
+}
+// ============================================================
+// TABLE HELPERS
+// ============================================================
+function updateTableHeader(bi, ci, val) {
+  curSlide().blocks[bi].tableData.headers[ci] = val;
+  refreshLive();
+}
+function updateTableCell(bi, ri, ci, val) {
+  curSlide().blocks[bi].tableData.rows[ri][ci] = val;
+  refreshLive();
+}
+function addTableRow(bi) {
+  var td = curSlide().blocks[bi].tableData;
+  td.rows.push(new Array(td.headers.length).fill(''));
+  renderEditor(); refreshLive();
+}
+function addTableCol(bi) {
+  var td = curSlide().blocks[bi].tableData;
+  td.headers.push('Header ' + (td.headers.length + 1));
+  td.rows.forEach(function(row) { row.push(''); });
+  renderEditor(); refreshLive();
+}
+function removeTableRow(bi, ri) {
+  var td = curSlide().blocks[bi].tableData;
+  if (td.rows.length <= 1) { toast('Need at least one row'); return; }
+  td.rows.splice(ri, 1);
+  renderEditor(); refreshLive();
+}
+function removeTableCol(bi) {
+  var td = curSlide().blocks[bi].tableData;
+  if (td.headers.length <= 1) { toast('Need at least one column'); return; }
+  td.headers.pop();
+  td.rows.forEach(function(row) { row.pop(); });
+  renderEditor(); refreshLive();
+}
+
+function clearBlockImage(bi) {
+  var slide = curSlide();
+  if (!slide) return;
+  slide.blocks[bi].imageData = null;
+  renderEditor();
+  refreshLive();
+}
+function setBlockAspect(bi, aspect) {
+  var slide = curSlide();
+  if (!slide) return;
+  slide.blocks[bi].aspect = aspect;
+  renderEditor();
+  refreshLive();
+}
+function setBlockFit(bi, fit) {
+  var slide = curSlide();
+  if (!slide) return;
+  slide.blocks[bi].fit = fit;
+  renderEditor();
+  refreshLive();
+}
+function readImg(file, bi) {
+  var reader = new FileReader();
+  reader.onload = function(ev) {
+    curSlide().blocks[bi].imageData = ev.target.result;
+    renderEditor(); refreshLive();
+  };
+  reader.readAsDataURL(file);
+}
+
+// ============================================================
+// IMPORT / EXPORT
+// ============================================================
+function saveToFile() {
+  var data = buildExport();
+  var blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  var a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = (course.id || 'course') + '_text.json'; a.click();
+  toast('Exported JSON');
+}
+
+function loadFromFile() {
+  var input = document.createElement('input');
+  input.type = 'file'; input.accept = '.json';
+  input.onchange = function() {
+    if (!input.files[0]) return;
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      try { importData(JSON.parse(e.target.result)); toast('Imported'); }
+      catch(err) { alert('Invalid JSON: ' + err.message); }
+    };
+    reader.readAsText(input.files[0]);
+  };
+  input.click();
+}
+
+function buildExport() {
+  var sessions = {};
+  course.sessions.forEach(function(s, si) {
+    sessions['S' + (si+1)] = {
+      title: s.label,
+      slides: s.slides.map(function(sl) {
+        var obj = { type:sl.type, title:sl.title, timecode:sl.timecode, blocks:sl.blocks.map(function(b) {
+          var bo = { type:b.type };
+          if (b.text) bo.text = b.text;
+          if (b.reference) bo.reference = b.reference;
+          if (b.attribution) bo.attribution = b.attribution;
+          if (b.caption) bo.caption = b.caption;
+          return bo;
+        })};
+        return obj;
+      })
+    };
+  });
+  return { course:course.name, courseId:course.id, teacher:course.teacher, sessions:sessions };
+}
+
+function importData(data) {
+  course.name = data.course || data.name || '';
+  course.id = data.courseId || data.id || generateCourseId(course.name);
+  course.teacher = data.teacher || '';
+  course.sessions = [];
+  var sess = data.sessions || {};
+  Object.keys(sess).sort(function(a,b) { return (parseInt(a.replace(/\D/g,''))||0) - (parseInt(b.replace(/\D/g,''))||0); }).forEach(function(k) {
+    var s = sess[k];
+    var slides = [];
+    (s.slides || []).forEach(function(sl) {
+      var blocks = sl.blocks || [];
+      if (blocks.length === 0) {
+        // Convert old format
+        blocks = [{type:'body', text: sl.body || (Array.isArray(sl.text) ? sl.text.join('\n') : (sl.text || ''))}];
+      }
+      slides.push({ type:sl.type||'body', title:sl.title||'', timecode:sl.timecode||'', blocks:blocks });
+    });
+    if (slides.length === 0) slides.push(makeSlide());
+    course.sessions.push({ label:s.title||'', slides:slides });
+  });
+  document.getElementById('courseName').value = course.name;
+  document.getElementById('courseId').value = course.id;
+  document.getElementById('courseTeacher').value = course.teacher;
+  select(0, 0);
+}
+
+// ============================================================
+// GITHUB INTEGRATION (via Cloudflare Worker proxy)
+// ============================================================
+var API_BASE = 'https://api-classroom.brandoniben.com';
+// Fallback to GitHub raw for read-only access (no worker needed)
+var GITHUB_DATA_URL = 'https://raw.githubusercontent.com/BRANDONIBEN/classroom-slide-builder/main/data';
+
+// FILE_NAMES declared at top of script
+function friendlyFileName(name) {
+  if (FILE_NAMES[name]) return FILE_NAMES[name];
+  var m = name.match(/^(.+)_text\.json$/);
+  if (m) return m[1].replace(/_/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+  return name;
+}
+
+async function loadFromGitHub(courseId) {
+  var data = null;
+  // Try Worker API first
+  try {
+    var resp = await fetch(API_BASE + '/courses/' + courseId);
+    if (resp.ok) data = await resp.json();
+  } catch(e) {}
+  // Fallback to raw GitHub
+  if (!data) {
+    var resp2 = await fetch(GITHUB_DATA_URL + '/' + courseId + '_text.json');
+    if (!resp2.ok) throw new Error('Course not found: ' + courseId);
+    data = await resp2.json();
+  }
+  // If data is a raw text string (plugin format), convert to structured format
+  if (typeof data === 'string') {
+    data = parseRawTextToCourseData(data, courseId);
+  }
+  return data;
+}
+
+// Convert the plugin's raw text format into structured course JSON
+function parseRawTextToCourseData(text, courseId) {
+  var lines = text.split('\n');
+  var sessions = {};
+  var sessionNum = 0;
+  var sessionName = '';
+  var currentSlide = null;
+  var bodyLines = [];
+  var slideNum = 0;
+
+  function stripTimecode(s) {
+    return s.replace(/\s*\([\d:]*\)\s*$/, '').trim();
+  }
+  function extractTimecode(s) {
+    var m = s.match(/\(([\d:]+)\)\s*$/);
+    return m ? m[1] : '';
+  }
+
+  function saveSlide() {
+    if (!currentSlide || sessionNum === 0) return;
+    var key = 'S' + sessionNum;
+    if (!sessions[key]) sessions[key] = { title: sessionName, slides: [] };
+    var body = bodyLines.join('\n').trim();
+    var type = currentSlide.type || detectSlideType(currentSlide.title, body);
+    var blocks = [];
+
+    if (type === 'scripture') {
+      // Scripture: title is the reference, body is the verse text
+      blocks.push({ type: 'scripture', reference: currentSlide.title || '', text: body });
+    } else if (type === 'quote') {
+      // Quote: strip surrounding quotes from body
+      var cleanBody = body.replace(/^[\u201C\u2018"]+/, '').replace(/[\u201D\u2019"]+$/, '').trim();
+      var attribution = '';
+      // If title is a scripture ref, use as attribution on the quote
+      if (isScriptureRef(currentSlide.title)) {
+        attribution = currentSlide.title;
+      }
+      blocks.push({ type: 'quote', text: cleanBody, attribution: attribution });
+    } else if (type === 'list') {
+      blocks.push({ type: 'list', text: body });
+    } else if (body) {
+      blocks.push({ type: 'body', text: body });
+    }
+
+    sessions[key].slides.push({
+      type: type,
+      title: (type === 'scripture') ? '' : (currentSlide.title || ''),
+      timecode: currentSlide.timecode || '',
+      blocks: blocks.length > 0 ? blocks : [{ type: 'body', text: '' }]
+    });
+    bodyLines = [];
+    currentSlide = null;
+  }
+
+  // Match plugin's isScriptureTitle logic
+  var scrBooks = 'Genesis|Exodus|Leviticus|Numbers|Deuteronomy|Joshua|Judges|Ruth|Samuel|Kings|Chronicles|Ezra|Nehemiah|Esther|Job|Psalms?|Proverbs|Ecclesiastes|Song|Isaiah|Jeremiah|Lamentations|Ezekiel|Daniel|Hosea|Joel|Amos|Obadiah|Jonah|Micah|Nahum|Habakkuk|Zephaniah|Haggai|Zechariah|Malachi|Matthew|Mark|Luke|John|Acts|Romans|Corinthians|Galatians|Ephesians|Philippians|Colossians|Thessalonians|Timothy|Titus|Philemon|Hebrews|James|Peter|Jude|Revelation';
+  var scrPattern = new RegExp('^(\\d\\s+)?(' + scrBooks + ')\\.?\\s+\\d+[:.\\-]', 'i');
+
+  function isScriptureRef(s) { return scrPattern.test((s || '').trim()); }
+
+  // Matches plugin's detectType exactly (ui.html parseSlides)
+  function detectSlideType(title, body) {
+    var t = (title || '').trim();
+    var b = (body || '').trim();
+    if (/^Static\s*(Graphic|Slide)/i.test(t)) return 'graphic';
+    if (/^ILLUSTRATION/i.test(t) || /^IMAGE/i.test(t) || /^ILLUSTRATION/i.test(b)) return 'illustration';
+    if (/^CHART/i.test(t) || /^CHART/i.test(b)) return 'chart';
+    // Table detection
+    var bLines = b.split('\n').map(function(l){return l.trim();}).filter(function(l){return l.length>0;});
+    if (bLines.length >= 3) {
+      var hasVerseRefs = bLines.filter(function(l){return /\d+:\d+/.test(l);}).length;
+      var headerLike = false;
+      for (var hi = 0; hi < Math.min(3, bLines.length); hi++) {
+        if (/\b[A-Z][a-z]+\b.*\b[A-Z][a-z]+\b.*\b[A-Z][a-z]+\b.*\b[A-Z][a-z]+\b/.test(bLines[hi])) { headerLike = true; break; }
+      }
+      if (hasVerseRefs >= 2 && headerLike) return 'table';
+    }
+    // Scripture ref as title with no body → scripture slide
+    if (isScriptureRef(t) && !b) return 'scripture';
+    if (!b) return 'statement';
+    // Scripture ref as title WITH body → determine by body format (matches plugin logic)
+    if (isScriptureRef(t)) {
+      if (/^[\u201C\u2018"]/.test(b)) return 'quote';
+      if (/^(\d+\.|[●•\-\*])/.test(b)) return 'list';
+      return 'body';
+    }
+    if (/^[\u201C\u2018"]/.test(b)) return 'quote';
+    if (/^(\d+\.|[●•\-\*])/.test(b)) return 'list';
+    return 'body';
+  }
+
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i];
+    var t = line.trim();
+    if (t === '') { if (bodyLines.length > 0) bodyLines.push(''); continue; }
+
+    var sm = t.match(/^Session\s+(\d+)\s*[:—\-–]\s*(.+)/i);
+    if (sm) {
+      saveSlide();
+      sessionNum = parseInt(sm[1]);
+      sessionName = sm[2].split('(')[0].trim();
+      slideNum = 0;
+      continue;
+    }
+    if (/^Teacher:/i.test(t)) continue;
+    if (/^Title Slide:/i.test(t)) {
+      while (i + 1 < lines.length) {
+        var nextT = lines[i + 1].trim();
+        if (/^(Slide\s+\d|Session\s+\d|\d+\s*[:.]\s|Static|CHART|Teacher:)/i.test(nextT) || nextT === '') break;
+        i++;
+      }
+      continue;
+    }
+    if (/^Static\s*(Graphic|Slide)/i.test(t) && !currentSlide) {
+      saveSlide();
+      currentSlide = { title: t, type: 'graphic', timecode: '' };
+      saveSlide();
+      continue;
+    }
+    if (/^CHART\b/i.test(t) && !currentSlide) {
+      saveSlide();
+      currentSlide = { title: t, type: 'chart', timecode: '' };
+      continue;
+    }
+
+    var slideMatch = t.match(/^Slide\s+(\d+)\s*:\s*(.*)$/i);
+    if (slideMatch) {
+      saveSlide();
+      slideNum = parseInt(slideMatch[1]);
+      var slideTitle = stripTimecode(slideMatch[2]);
+      if (slideTitle === '' || /^\([\d:]*\)$/.test(slideTitle)) slideTitle = '';
+      currentSlide = { title: slideTitle, timecode: extractTimecode(slideMatch[2]) };
+      continue;
+    }
+
+    var numMatch = t.match(/^(\d+)\s*[:.]\s*(.+)/);
+    if (numMatch && t.charCodeAt(0) !== 0x201C && t.charAt(0) !== '"' && !currentSlide) {
+      saveSlide();
+      currentSlide = { title: stripTimecode(numMatch[2]), timecode: extractTimecode(numMatch[2]) };
+      continue;
+    }
+
+    if (currentSlide) {
+      if (/^\d+\s+We want/.test(t)) continue;
+      if (/^Static\s*(Graphic|Slide)/i.test(t)) continue;
+      bodyLines.push(line);
+    }
+  }
+  saveSlide();
+
+  // Resolve course name from file header
+  var courseName = FILE_NAMES[courseId + '_text.json'] || courseId.toUpperCase();
+
+  return { course: courseName, courseId: courseId, teacher: '', sessions: sessions };
+}
+
+async function saveToGitHub(courseId, jsonData) {
+  var resp = await fetch(API_BASE + '/courses/' + courseId, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(jsonData, null, 2)
+  });
+  if (!resp.ok) {
+    var err = await resp.text().catch(function() { return resp.status; });
+    throw new Error('Save failed: ' + err);
+  }
+  return await resp.json();
+}
+
+async function listCoursesFromGitHub() {
+  try {
+    var resp = await fetch(API_BASE + '/courses');
+    if (resp.ok) return await resp.json();
+  } catch(e) {}
+  // Fallback to raw GitHub
+  var resp2 = await fetch(GITHUB_DATA_URL + '/index.json');
+  if (!resp2.ok) return { courses: [] };
+  return await resp2.json();
+}
+
+var _cachedCourseList = null;
+
+async function loadWatchFolder(useCache) {
+  var el = document.getElementById('watchFolderList');
+  var dot = document.getElementById('filesDot');
+  if (!useCache) {
+    el.innerHTML = '<span style="color:var(--text3);">Connecting...</span>';
+    dot.style.background = 'var(--gold)';
+  }
+  try {
+    var index = (useCache && _cachedCourseList) ? _cachedCourseList : await listCoursesFromGitHub();
+    _cachedCourseList = index;
+    var courses_list = index.courses || [];
+    if (courses_list.length === 0) {
+      showLocalCourses(el, dot);
+      return;
+    }
+    var html = '';
+    courses_list.forEach(function(c) {
+      var isCurrent = course.id && c.id === course.id;
+      html += '<div onclick="loadRemoteCourse(\'' + esc(c.id) + '\')" style="padding:6px 8px;margin-bottom:4px;border-radius:var(--radius);cursor:pointer;display:flex;align-items:center;gap:6px;';
+      html += isCurrent ? 'background:var(--blurple-950);border:1px solid var(--blurple-700);' : 'background:var(--surface2);border:1px solid var(--border);';
+      html += '">';
+      html += '<span style="width:8px;height:8px;border-radius:50%;background:' + (isCurrent ? 'var(--blurple-400)' : 'var(--text3)') + ';flex-shrink:0;"></span>';
+      html += '<span style="font-size:11px;color:' + (isCurrent ? 'var(--blurple-200)' : 'var(--text)') + ';font-weight:' + (isCurrent ? '600' : '400') + ';flex:1;">' + esc(c.name) + '</span>';
+      html += courseMenuHTML(c.id, c.name, null);
+      html += '</div>';
+    });
+    // Also show local-only courses
+    var localOnly = getLocalOnlyCourses(courses_list.map(function(c) { return c.id; }));
+    if (localOnly.length > 0) {
+      html += '<div style="font-size:9px;color:var(--text3);margin-top:8px;margin-bottom:4px;">Local Only</div>';
+      localOnly.forEach(function(c) {
+        var isCurrent = course.id && c.id === course.id;
+        html += '<div style="padding:5px 8px;margin-bottom:4px;border-radius:var(--radius);display:flex;align-items:center;gap:6px;';
+        html += isCurrent ? 'background:var(--blurple-950);border:1px solid var(--blurple-700);' : 'background:var(--surface2);border:1px solid var(--border);';
+        html += '">';
+        html += '<span onclick="switchToLocalCourse(\'' + esc(c.key) + '\')" style="display:flex;align-items:center;gap:6px;flex:1;cursor:pointer;">';
+        html += '<span style="width:8px;height:8px;border-radius:50%;background:' + (isCurrent ? 'var(--blurple-400)' : 'var(--text3)') + ';flex-shrink:0;"></span>';
+        html += '<span style="font-size:11px;color:' + (isCurrent ? 'var(--blurple-200)' : 'var(--text)') + ';">' + esc(c.name) + '</span>';
+        html += '</span>';
+        html += courseMenuHTML(c.id, c.name, c.key);
+        html += '</div>';
+      });
+    }
+    el.innerHTML = html;
+    dot.style.background = 'var(--green)';
+  } catch(e) {
+    showLocalCourses(el, dot);
+  }
+}
+
+function getLocalOnlyCourses(remoteIds) {
+  var local = [];
+  for (var i = 0; i < localStorage.length; i++) {
+    var key = localStorage.key(i);
+    if (key.startsWith('csb_')) {
+      try {
+        var d = JSON.parse(localStorage.getItem(key));
+        var id = d.id || key.replace('csb_','');
+        if (remoteIds.indexOf(id) === -1 && d.name) {
+          local.push({ id: id, name: d.name, key: key });
+        }
+      } catch(e) {}
+    }
+  }
+  return local.sort(function(a,b) { return a.name.localeCompare(b.name); });
+}
+
+async function loadRemoteCourse(courseId) {
+  // If already open, do nothing
+  if (course.id === courseId) return;
+  toast('Loading from GitHub...');
+  try {
+    var data = await loadFromGitHub(courseId);
+    if (data.course && data.courseId) {
+      FILE_NAMES[data.courseId + '_text.json'] = data.course;
+    }
+    importData(data);
+    toast('Loaded: ' + (data.course || courseId));
+    loadWatchFolder(true); // use cache for instant menu update
+  } catch(e) { toast('Load failed: ' + e.message); }
+}
+
+function saveCurrentCourseToLocal() {
+  if (course.id && course.name) {
+    var data = { name:course.name, id:course.id, teacher:course.teacher, sessions:course.sessions };
+    localStorage.setItem('csb_' + course.id, JSON.stringify(data));
+  }
+}
+
+function showLocalCourses(el, dot) {
+  // Save current course so it appears in the list
+  saveCurrentCourseToLocal();
+
+  // Scan localStorage for saved courses (csb_* keys)
+  var localCourses = [];
+  for (var i = 0; i < localStorage.length; i++) {
+    var key = localStorage.key(i);
+    if (key.startsWith('csb_')) {
+      try {
+        var d = JSON.parse(localStorage.getItem(key));
+        if (d.name) localCourses.push({ id: d.id || key.replace('csb_',''), name: d.name, key: key });
+      } catch(e) {}
+    }
+  }
+
+  if (localCourses.length === 0) {
+    el.innerHTML = '<span style="font-style:italic;font-size:10px;color:var(--text3);">No saved courses</span>';
+    dot.style.background = 'var(--text3)';
+    return;
+  }
+
+  // Sort alphabetically
+  localCourses.sort(function(a,b) { return a.name.localeCompare(b.name); });
+
+  var html = '';
+  localCourses.forEach(function(c) {
+    var isCurrent = course.id && c.id === course.id;
+    html += '<div style="padding:5px 8px;margin-bottom:4px;border-radius:var(--radius);display:flex;align-items:center;gap:6px;';
+    html += isCurrent ? 'background:var(--blurple-950);border:1px solid var(--blurple-700);' : 'background:var(--surface2);border:1px solid var(--border);';
+    html += '">';
+    html += '<span onclick="switchToLocalCourse(\'' + esc(c.key) + '\')" style="display:flex;align-items:center;gap:6px;flex:1;cursor:pointer;">';
+    html += '<span style="width:8px;height:8px;border-radius:50%;background:' + (isCurrent ? 'var(--blurple-400)' : 'var(--text3)') + ';flex-shrink:0;"></span>';
+    html += '<span style="font-size:11px;color:' + (isCurrent ? 'var(--blurple-200)' : 'var(--text)') + ';font-weight:' + (isCurrent ? '600' : '400') + ';">' + esc(c.name) + '</span>';
+    html += '</span>';
+    html += courseMenuHTML(c.id, c.name, c.key);
+    html += '</div>';
+  });
+  el.innerHTML = html;
+  dot.style.background = 'var(--green)';
+}
+
+// ··· menu helpers
+var _openMenu = null;
+function toggleCourseMenu(menuId, e) {
+  e.stopPropagation();
+  var menu = document.getElementById(menuId);
+  if (_openMenu && _openMenu !== menu) _openMenu.classList.remove('open');
+  menu.classList.toggle('open');
+  _openMenu = menu.classList.contains('open') ? menu : null;
+  if (_openMenu) {
+    var btn = e.target;
+    var rect = btn.getBoundingClientRect();
+    menu.style.top = (rect.bottom + 4) + 'px';
+    menu.style.left = Math.max(8, rect.right - 140) + 'px';
+  }
+}
+document.addEventListener('click', function() {
+  if (_openMenu) { _openMenu.classList.remove('open'); _openMenu = null; }
+});
+
+function courseMenuHTML(courseId, courseName, localKey) {
+  var menuId = 'cmenu_' + courseId.replace(/[^a-z0-9]/gi, '_');
+  var html = '<div class="course-menu-wrap" onclick="event.stopPropagation()">';
+  html += '<span class="course-menu-btn" onclick="toggleCourseMenu(\'' + menuId + '\', event)">&middot;&middot;&middot;</span>';
+  html += '<div class="course-menu-dropdown" id="' + menuId + '">';
+  html += '<div class="course-menu-item" onclick="loadRemoteCourse(\'' + esc(courseId) + '\')">Edit</div>';
+  html += '<div class="course-menu-item" onclick="showVersionHistory(\'' + esc(courseId) + '\',\'' + esc(courseName) + '\')">Version History</div>';
+  if (localKey) {
+    html += '<div class="course-menu-sep"></div>';
+    html += '<div class="course-menu-item danger" onclick="showDeleteModal(\'' + esc(localKey) + '\',\'' + esc(courseName) + '\')">Delete</div>';
+  }
+  html += '</div></div>';
+  return html;
+}
+
+// Delete modal
+function showDeleteModal(key, name) {
+  if (_openMenu) { _openMenu.classList.remove('open'); _openMenu = null; }
+  var modal = document.getElementById('deleteModal');
+  document.getElementById('deleteModalMsg').innerHTML = 'This will permanently remove <strong>' + esc(name) + '</strong> from your local storage. Any unpublished changes will be lost.';
+  var btn = document.getElementById('deleteModalConfirm');
+  btn.onclick = function() {
+    localStorage.removeItem(key);
+    closeDeleteModal();
+    loadWatchFolder();
+    toast('Deleted ' + name);
+  };
+  modal.classList.add('open');
+}
+function closeDeleteModal() {
+  document.getElementById('deleteModal').classList.remove('open');
+}
+
+// Version history modal
+async function showVersionHistory(courseId, courseName) {
+  if (_openMenu) { _openMenu.classList.remove('open'); _openMenu = null; }
+  var modal = document.getElementById('versionModal');
+  var body = document.getElementById('versionModalBody');
+  document.getElementById('versionModalTitle').textContent = 'Version History — ' + courseName;
+  body.innerHTML = '<p style="color:var(--text3);font-size:12px;text-align:center;padding:20px;">Loading...</p>';
+  modal.classList.add('open');
+
+  try {
+    var resp = await fetch(API_BASE + '/courses/' + courseId + '/history');
+    if (!resp.ok) throw new Error('Failed to load');
+    var data = await resp.json();
+    var history = data.history || [];
+    if (history.length === 0) {
+      body.innerHTML = '<p style="color:var(--text3);font-size:12px;text-align:center;padding:20px;">No version history available yet.</p>';
+      return;
+    }
+    var html = '';
+    history.forEach(function(v, i) {
+      var d = new Date(v.date);
+      var dateStr = d.toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
+      var timeStr = d.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' });
+      html += '<div class="version-item' + (i === 0 ? ' current' : '') + '">';
+      html += '<span class="v-date">' + dateStr + ' ' + timeStr + '</span>';
+      html += '<span class="v-msg">' + esc(v.message) + '</span>';
+      html += '<span class="v-revert" onclick="revertToVersion(\'' + esc(courseId) + '\',\'' + v.sha + '\',\'' + dateStr + ' ' + timeStr + '\')">Revert</span>';
+      html += '</div>';
+    });
+    body.innerHTML = html;
+  } catch(e) {
+    body.innerHTML = '<p style="color:var(--text3);font-size:12px;text-align:center;padding:20px;">Version history unavailable — requires the API worker to be deployed.</p>';
+  }
+}
+
+async function revertToVersion(courseId, sha, dateLabel) {
+  if (!confirm('Revert to the version from ' + dateLabel + '? This will overwrite the current version.')) return;
+  toast('Reverting...');
+  try {
+    var resp = await fetch(API_BASE + '/courses/' + courseId + '/revert/' + sha, { method:'POST' });
+    if (!resp.ok) throw new Error('Revert failed');
+    toast('Reverted! Reloading...');
+    closeVersionModal();
+    // Reload the course
+    await loadRemoteCourse(courseId);
+  } catch(e) {
+    toast('Revert failed: ' + e.message);
+  }
+}
+
+function closeVersionModal() {
+  document.getElementById('versionModal').classList.remove('open');
+}
+
+// Scripture lookup (KJV via bible-api.com — free, no key)
+// Scripture reference input handler — inline autocomplete + debounced lookup
+var _lookupTimers = {};
+
+function onScrRefInput(bi, el) {
+  var val = el.value;
+  curSlide().blocks[bi].reference = val;
+
+  // Show matching books as dropdown suggestions after 2+ chars
+  var suggestEl = document.getElementById('scrSuggest_' + bi);
+  if (suggestEl) {
+    var bookPart = val.replace(/[\d:;\-\.\s]+$/, '').trim();
+    if (bookPart.length >= 2 && !/\d+[:.;]\d+/.test(val)) {
+      // Find all matching books
+      var q = bookPart.toLowerCase();
+      var matches = BIBLE_BOOKS.filter(function(b) {
+        return b.n.toLowerCase().startsWith(q);
+      }).slice(0, 5);
+      // Also check aliases
+      if (matches.length === 0) {
+        var aliasKeys = Object.keys(BOOK_ALIASES);
+        for (var ai = 0; ai < aliasKeys.length; ai++) {
+          if (aliasKeys[ai].startsWith(q)) {
+            var resolved = BOOK_ALIASES[aliasKeys[ai]];
+            if (matches.filter(function(m){return m.n===resolved;}).length === 0) {
+              var book = BIBLE_BOOKS.find(function(b){return b.n===resolved;});
+              if (book) matches.push(book);
+            }
+          }
+        }
+      }
+      if (matches.length > 0) {
+        var html = '';
+        matches.forEach(function(m) {
+          html += '<div onclick="acceptScrSuggestion(' + bi + ',\'' + esc(m.n) + '\')" style="padding:5px 10px;cursor:pointer;color:var(--text);display:flex;justify-content:space-between;" onmouseover="this.style.background=\'var(--surface3,rgba(255,255,255,.06))\'" onmouseout="this.style.background=\'transparent\'">';
+          html += '<span>' + esc(m.n) + '</span>';
+          html += '<span style="color:var(--text3);font-size:9px;">' + m.c + ' ch</span>';
+          html += '</div>';
+        });
+        suggestEl.innerHTML = html;
+        suggestEl.style.display = 'block';
+        suggestEl.dataset.match = matches[0].n;
+      } else {
+        suggestEl.style.display = 'none';
+      }
+    } else {
+      suggestEl.style.display = 'none';
+    }
+  }
+
+  // Show chapter hint when book is complete but no chapter:verse yet
+  if (suggestEl && /\d+[:.;]\d+/.test(val)) {
+    suggestEl.style.display = 'none';
+  } else if (suggestEl && suggestEl.style.display === 'none') {
+    // Check if they typed a full book name + space but no chapter yet
+    var normalized = normalizeRef(val);
+    var bookMatch = BIBLE_BOOKS.find(function(b) {
+      return normalized.toLowerCase().startsWith(b.n.toLowerCase() + ' ');
+    });
+    if (bookMatch && !/\d/.test(val.replace(/^\d\s*/, '').replace(bookMatch.n, ''))) {
+      suggestEl.innerHTML = '<div style="padding:5px 10px;color:var(--text3);font-size:10px;">' + bookMatch.n + ' has ' + bookMatch.c + ' chapters &mdash; type chapter:verse (e.g. 3:16)</div>';
+      suggestEl.style.display = 'block';
+      suggestEl.dataset.match = '';
+    }
+  }
+
+  // Debounced auto-lookup when reference looks complete (book + chapter:verse)
+  if (_lookupTimers[bi]) clearTimeout(_lookupTimers[bi]);
+  var normalizedForLookup = normalizeRef(val);
+  if (/\d+[:.]\d+/.test(normalizedForLookup)) {
+    _lookupTimers[bi] = setTimeout(function() {
+      lookupScripture(bi);
+    }, 1000);
+  }
+}
+
+function acceptScrSuggestion(bi, bookName) {
+  var el = document.getElementById('scrRef_' + bi);
+  if (!el) return;
+  el.value = bookName + ' ';
+  curSlide().blocks[bi].reference = el.value;
+  var suggestEl = document.getElementById('scrSuggest_' + bi);
+  if (suggestEl) suggestEl.style.display = 'none';
+  el.focus();
+  el.setSelectionRange(el.value.length, el.value.length);
+}
+
+function onScrRefKey(e, bi) {
+  var suggestEl = document.getElementById('scrSuggest_' + bi);
+  // Tab or arrow-down to accept suggestion
+  if ((e.key === 'Tab' || e.key === 'ArrowDown') && suggestEl && suggestEl.dataset.match) {
+    e.preventDefault();
+    var el = document.getElementById('scrRef_' + bi);
+    var rest = el.value.replace(/^[\d]?\s*\w+\.?\s*/, '');
+    el.value = suggestEl.dataset.match + (rest ? ' ' + rest : ' ');
+    curSlide().blocks[bi].reference = el.value;
+    suggestEl.style.display = 'none';
+    el.setSelectionRange(el.value.length, el.value.length);
+  }
+  // Enter to force lookup
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    if (_lookupTimers[bi]) clearTimeout(_lookupTimers[bi]);
+    if (suggestEl) suggestEl.style.display = 'none';
+    lookupScripture(bi);
+  }
+}
+
+// Complete KJV Bible book index: { name: maxChapters }
+var BIBLE_BOOKS = [
+  {n:'Genesis',c:50},{n:'Exodus',c:40},{n:'Leviticus',c:27},{n:'Numbers',c:36},{n:'Deuteronomy',c:34},
+  {n:'Joshua',c:24},{n:'Judges',c:21},{n:'Ruth',c:4},{n:'1 Samuel',c:31},{n:'2 Samuel',c:24},
+  {n:'1 Kings',c:22},{n:'2 Kings',c:25},{n:'1 Chronicles',c:29},{n:'2 Chronicles',c:36},
+  {n:'Ezra',c:10},{n:'Nehemiah',c:13},{n:'Esther',c:10},{n:'Job',c:42},{n:'Psalms',c:150},
+  {n:'Proverbs',c:31},{n:'Ecclesiastes',c:12},{n:'Song of Solomon',c:8},{n:'Isaiah',c:66},
+  {n:'Jeremiah',c:52},{n:'Lamentations',c:5},{n:'Ezekiel',c:48},{n:'Daniel',c:12},{n:'Hosea',c:14},
+  {n:'Joel',c:3},{n:'Amos',c:9},{n:'Obadiah',c:1},{n:'Jonah',c:4},{n:'Micah',c:7},{n:'Nahum',c:3},
+  {n:'Habakkuk',c:3},{n:'Zephaniah',c:3},{n:'Haggai',c:2},{n:'Zechariah',c:14},{n:'Malachi',c:4},
+  {n:'Matthew',c:28},{n:'Mark',c:16},{n:'Luke',c:24},{n:'John',c:21},{n:'Acts',c:28},
+  {n:'Romans',c:16},{n:'1 Corinthians',c:16},{n:'2 Corinthians',c:13},{n:'Galatians',c:6},
+  {n:'Ephesians',c:6},{n:'Philippians',c:4},{n:'Colossians',c:4},{n:'1 Thessalonians',c:5},
+  {n:'2 Thessalonians',c:3},{n:'1 Timothy',c:6},{n:'2 Timothy',c:4},{n:'Titus',c:3},{n:'Philemon',c:1},
+  {n:'Hebrews',c:13},{n:'James',c:5},{n:'1 Peter',c:5},{n:'2 Peter',c:3},{n:'1 John',c:5},
+  {n:'2 John',c:1},{n:'3 John',c:1},{n:'Jude',c:1},{n:'Revelation',c:22}
+];
+// Aliases for common abbreviations/misspellings
+var BOOK_ALIASES = {
+  'gen':'Genesis','ex':'Exodus','lev':'Leviticus','num':'Numbers','deut':'Deuteronomy',
+  'josh':'Joshua','judg':'Judges','ru':'Ruth','1sam':'1 Samuel','2sam':'2 Samuel',
+  '1ki':'1 Kings','2ki':'2 Kings','1chr':'1 Chronicles','2chr':'2 Chronicles',
+  'neh':'Nehemiah','est':'Esther','ps':'Psalms','psalm':'Psalms','prov':'Proverbs',
+  'eccl':'Ecclesiastes','ecc':'Ecclesiastes','song':'Song of Solomon','sos':'Song of Solomon',
+  'isa':'Isaiah','jer':'Jeremiah','lam':'Lamentations','ezek':'Ezekiel','dan':'Daniel',
+  'hos':'Hosea','ob':'Obadiah','jon':'Jonah','mic':'Micah','nah':'Nahum','hab':'Habakkuk',
+  'zeph':'Zephaniah','hag':'Haggai','zech':'Zechariah','mal':'Malachi',
+  'matt':'Matthew','mat':'Matthew','mk':'Mark','lk':'Luke','jn':'John','joh':'John',
+  'rom':'Romans','1cor':'1 Corinthians','2cor':'2 Corinthians','gal':'Galatians',
+  'eph':'Ephesians','phil':'Philippians','col':'Colossians',
+  '1thess':'1 Thessalonians','2thess':'2 Thessalonians','1tim':'1 Timothy','2tim':'2 Timothy',
+  'tit':'Titus','phm':'Philemon','heb':'Hebrews','jas':'James','jam':'James',
+  '1pet':'1 Peter','2pet':'2 Peter','1jn':'1 John','2jn':'2 John','3jn':'3 John',
+  'rev':'Revelation'
+};
+
+function matchBook(input) {
+  var q = input.toLowerCase().trim();
+  // Check aliases first
+  if (BOOK_ALIASES[q]) return BOOK_ALIASES[q];
+  // Prefix match on full names
+  for (var i = 0; i < BIBLE_BOOKS.length; i++) {
+    if (BIBLE_BOOKS[i].n.toLowerCase().startsWith(q)) return BIBLE_BOOKS[i].n;
+  }
+  // Fuzzy: check if alias starts with input
+  var aliasKeys = Object.keys(BOOK_ALIASES);
+  for (var j = 0; j < aliasKeys.length; j++) {
+    if (aliasKeys[j].startsWith(q)) return BOOK_ALIASES[aliasKeys[j]];
+  }
+  return null;
+}
+
+function normalizeRef(ref) {
+  var cleaned = ref
+    .replace(/;/g, ':')           // semicolon → colon
+    .replace(/\s*:\s*/g, ':')     // spaces around colon
+    .replace(/\s*-\s*/g, '-')     // spaces around dash
+    .replace(/\s{2,}/g, ' ')      // double spaces
+    .trim();
+  // Try to resolve book abbreviations: split into book part + chapter:verse part
+  var m = cleaned.match(/^(\d?\s*\w+\.?)\s*([\d:.\-]+.*)$/);
+  if (m) {
+    var bookInput = m[1].replace(/\./g, '').trim();
+    var rest = m[2];
+    var resolved = matchBook(bookInput);
+    if (resolved) cleaned = resolved + ' ' + rest;
+  }
+  return cleaned;
+}
+
+var _lookupInFlight = false;
+async function lookupScripture(bi) {
+  var refEl = document.getElementById('scrRef_' + bi);
+  if (!refEl) return;
+  var raw = refEl.value.trim();
+  var ref = normalizeRef(raw);
+  // Update the field with normalized version
+  if (ref !== raw) {
+    refEl.value = ref;
+    var slide = curSlide();
+    if (slide && slide.blocks[bi]) slide.blocks[bi].reference = ref;
+  }
+  if (!ref || _lookupInFlight) return;
+  _lookupInFlight = true;
+  var textarea = document.getElementById('scrText_' + bi);
+  if (textarea) textarea.placeholder = 'Looking up...';
+  try {
+    var resp = await fetch('https://bible-api.com/' + encodeURIComponent(ref) + '?translation=kjv');
+    if (!resp.ok) throw new Error('Not found');
+    var data = await resp.json();
+    if (data.text) {
+      var text = data.text.replace(/\n+/g, ' ').trim();
+      // Update the model
+      var slide = curSlide();
+      if (slide && slide.blocks[bi]) {
+        slide.blocks[bi].text = text;
+        if (data.reference) slide.blocks[bi].reference = data.reference;
+      }
+      // Update DOM if elements still exist
+      var ta = document.getElementById('scrText_' + bi);
+      if (ta) ta.value = text;
+      var re = document.getElementById('scrRef_' + bi);
+      if (re && data.reference) re.value = data.reference;
+      refreshLive();
+      scheduleAutosave();
+      toast('Loaded: ' + (data.reference || ref) + ' (KJV)');
+    } else {
+      toast('No text found for "' + ref + '"');
+    }
+  } catch(e) {
+    toast('Lookup failed — check the reference format');
+  }
+  _lookupInFlight = false;
+}
+
+function switchToLocalCourse(key) {
+  // Save current first
+  if (course.id && course.name) {
+    var saveData = { name:course.name, id:course.id, teacher:course.teacher, sessions:course.sessions };
+    localStorage.setItem('csb_' + course.id, JSON.stringify(saveData));
+  }
+  // Load the selected course
+  try {
+    var data = JSON.parse(localStorage.getItem(key));
+    course.name = data.name || '';
+    course.id = data.id || '';
+    course.teacher = data.teacher || '';
+    course.sessions = data.sessions || [makeSession('')];
+    if (course.sessions.length === 0) course.sessions.push(makeSession(''));
+    document.getElementById('courseName').value = course.name;
+    document.getElementById('courseId').value = course.id;
+    document.getElementById('courseTeacher').value = course.teacher;
+    // Also save as current autosave
+    localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(data));
+    sel.si = 0; sel.sli = 0;
+    renderAll();
+    loadWatchFolder(true); // instant menu update
+    toast('Switched to ' + course.name);
+  } catch(e) { toast('Failed to load course'); }
+}
+
+
+function formatSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1048576) return Math.round(bytes/1024) + ' KB';
+  return (bytes/1048576).toFixed(1) + ' MB';
+}
+
+// ============================================================
+// DRAG REORDER (nav slides)
+// ============================================================
+var dragState = { si:null, sli:null };
+
+function onNavDragStart(e, si, sli) {
+  dragState.si = si; dragState.sli = sli;
+  e.dataTransfer.effectAllowed = 'move';
+  e.target.style.opacity = '0.4';
+}
+function onNavDragEnd(e) {
+  e.target.style.opacity = '1';
+  dragState = { si:null, sli:null };
+}
+function onNavDragOver(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }
+function onNavDrop(e, si, sli) {
+  e.preventDefault();
+  if (dragState.si === null) return;
+  if (dragState.si === si) {
+    // Same session — reorder
+    var slides = course.sessions[si].slides;
+    var moved = slides.splice(dragState.sli, 1)[0];
+    slides.splice(sli, 0, moved);
+    // Update selection
+    sel.sli = sli;
+  } else {
+    // Cross-session move
+    var moved = course.sessions[dragState.si].slides.splice(dragState.sli, 1)[0];
+    course.sessions[si].slides.splice(sli, 0, moved);
+    sel.si = si; sel.sli = sli;
+  }
+  scheduleAutosave();
+  renderAll();
+}
+
+// ============================================================
+// STATS
+// ============================================================
+function updateStats() {
+  var total = totalSlides();
+  var tc = {};
+  var totalSeconds = 0;
+  course.sessions.forEach(function(s) {
+    var lastTc = 0;
+    s.slides.forEach(function(sl) {
+      tc[sl.type] = (tc[sl.type]||0)+1;
+      if (sl.timecode) {
+        var parts = sl.timecode.split(':');
+        var secs = 0;
+        if (parts.length === 2) secs = parseInt(parts[0]||0)*60 + parseInt(parts[1]||0);
+        else if (parts.length === 3) secs = parseInt(parts[0]||0)*3600 + parseInt(parts[1]||0)*60 + parseInt(parts[2]||0);
+        if (secs > lastTc) lastTc = secs;
+      }
+    });
+    totalSeconds += lastTc;
+  });
+  document.getElementById('statSessions').textContent = course.sessions.length + ' session' + (course.sessions.length !== 1 ? 's' : '');
+  document.getElementById('statSlides').textContent = total + ' slide' + (total !== 1 ? 's' : '');
+  var typeStr = Object.keys(tc).map(function(t) { return t.toUpperCase() + ' x' + tc[t]; }).join('  ');
+  if (totalSeconds > 0) {
+    var h = Math.floor(totalSeconds/3600);
+    var m = Math.floor((totalSeconds%3600)/60);
+    typeStr += '  |  ' + (h > 0 ? h + 'h ' : '') + m + 'm runtime';
+  }
+  document.getElementById('statTypes').textContent = typeStr;
+}
+
+// ============================================================
+// VIDEO PLAYER
+// ============================================================
+var videoEl = null;
+var vpCollapsed = false;
+var timecodeInterval = null;
+
+function toggleVideoPlayer() {
+  vpCollapsed = !vpCollapsed;
+  document.getElementById('videoPlayer').classList.toggle('collapsed', vpCollapsed);
+  document.getElementById('vpToggle').innerHTML = vpCollapsed ? '&#9654;' : '&#9660;';
+}
+
+var ytPlayer = null;
+var videoMode = 'none'; // 'html5', 'youtube', 'vimeo', 'iframe'
+
+function loadVideo(url) {
+  var container = document.getElementById('videoContainer');
+  videoEl = null; ytPlayer = null; videoMode = 'none';
+  if (timecodeInterval) clearInterval(timecodeInterval);
+
+  if (!url.trim()) {
+    container.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text3);font-size:11px;">Paste a video URL above</div>';
+    return;
+  }
+
+  // YouTube — use IFrame API for timecode access
+  var ytMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/);
+  if (ytMatch) {
+    videoMode = 'youtube';
+    container.innerHTML = '<div id="ytPlayerDiv"></div>';
+    // Load YT API if not loaded
+    if (!window.YT || !window.YT.Player) {
+      var tag = document.createElement('script');
+      tag.src = 'https://www.youtube.com/iframe_api';
+      document.head.appendChild(tag);
+      window._ytVideoId = ytMatch[1];
+      window.onYouTubeIframeAPIReady = function() { createYTPlayer(window._ytVideoId); };
+    } else {
+      createYTPlayer(ytMatch[1]);
+    }
+    return;
+  }
+
+  // Vimeo — use Vimeo Player SDK for timecode
+  var vimeoMatch = url.match(/vimeo\.com\/(\d+)/);
+  if (vimeoMatch) {
+    videoMode = 'vimeo';
+    container.innerHTML = '<div id="vimeoPlayerDiv" style="width:100%;aspect-ratio:16/9;"></div>';
+    // Load Vimeo SDK if not loaded
+    if (!window.Vimeo || !window.Vimeo.Player) {
+      var tag = document.createElement('script');
+      tag.src = 'https://player.vimeo.com/api/player.js';
+      tag.onload = function() { createVimeoPlayer(vimeoMatch[1]); };
+      document.head.appendChild(tag);
+    } else {
+      createVimeoPlayer(vimeoMatch[1]);
+    }
+    return;
+  }
+
+  // Frame.io — no API access, use iframe + manual timecode
+  if (url.includes('frame.io') || url.includes('f.io/')) {
+    videoMode = 'frameio';
+    container.innerHTML = '<iframe src="' + esc(url) + '" allow="autoplay" allowfullscreen style="width:100%;aspect-ratio:16/9;border:none;border-radius:4px;"></iframe>';
+    updateVideoControls();
+    startManualTimecode();
+    return;
+  }
+
+  // Dropbox shared link — convert to direct video
+  if (url.includes('dropbox.com')) {
+    videoMode = 'html5';
+    var directUrl = url.replace('dl=0', 'dl=1').replace('www.dropbox.com', 'dl.dropboxusercontent.com');
+    container.innerHTML = '<video id="videoElement" src="' + esc(directUrl) + '" controls style="width:100%;border-radius:4px;"></video>';
+    videoEl = document.getElementById('videoElement');
+    startTimecodeTracker();
+    updateVideoControls();
+    return;
+  }
+
+  // Direct video URL
+  if (url.match(/\.(mp4|webm|mov|m4v)($|\?)/i)) {
+    videoMode = 'html5';
+    container.innerHTML = '<video id="videoElement" src="' + esc(url) + '" controls style="width:100%;border-radius:4px;"></video>';
+    videoEl = document.getElementById('videoElement');
+    startTimecodeTracker();
+    return;
+  }
+
+  // Fallback: iframe + manual timecode
+  videoMode = 'iframe';
+  container.innerHTML = '<iframe src="' + esc(url) + '" allow="autoplay" allowfullscreen style="width:100%;aspect-ratio:16/9;border:none;border-radius:4px;"></iframe>';
+  startManualTimecode();
+}
+
+function createYTPlayer(videoId) {
+  ytPlayer = new YT.Player('ytPlayerDiv', {
+    width: '100%',
+    videoId: videoId,
+    playerVars: { modestbranding: 1, rel: 0 },
+    events: {
+      onReady: function() {
+        startTimecodeTracker();
+      }
+    }
+  });
+}
+
+function createVimeoPlayer(videoId) {
+  var vp = new Vimeo.Player('vimeoPlayerDiv', { id: parseInt(videoId), responsive: true });
+  // Store for seek/play
+  window._vimeoPlayer = vp;
+  startTimecodeTracker();
+}
+
+function updateVideoControls() {
+  var seekBack = document.getElementById('vpSeekBack');
+  var playPause = document.getElementById('vpPlayPause');
+  var seekFwd = document.getElementById('vpSeekFwd');
+  var tc = document.getElementById('videoTimecode');
+  var hint = document.getElementById('vpModeHint');
+
+  if (videoMode === 'frameio' || videoMode === 'iframe') {
+    // Gray out transport controls
+    [seekBack, playPause, seekFwd].forEach(function(btn) {
+      btn.disabled = true;
+      btn.style.opacity = '0.3';
+      btn.style.cursor = 'not-allowed';
+      btn.title = 'Not available for ' + (videoMode === 'frameio' ? 'Frame.io' : 'embedded') + ' videos';
+    });
+    // Make timecode editable
+    tc.contentEditable = true;
+    tc.style.border = '2px solid var(--blurple-400)';
+    tc.style.padding = '6px 12px';
+    tc.style.borderRadius = '6px';
+    tc.style.background = 'var(--surface2)';
+    tc.style.minWidth = '100px';
+    tc.style.textAlign = 'center';
+    tc.style.fontSize = '16px';
+    tc.title = 'Type timecode from the player, then click Stamp';
+    // Show hint
+    hint.style.display = 'block';
+    hint.textContent = videoMode === 'frameio'
+      ? 'Click the timecode in the Frame.io player, type it here, then Stamp'
+      : 'Transport controls unavailable for embedded videos \u2014 type timecode manually';
+  } else {
+    // Enable transport controls
+    [seekBack, playPause, seekFwd].forEach(function(btn) {
+      btn.disabled = false;
+      btn.style.opacity = '1';
+      btn.style.cursor = 'pointer';
+      btn.title = '';
+    });
+    // Reset timecode to non-editable
+    tc.contentEditable = false;
+    tc.style.border = 'none';
+    tc.style.padding = '0';
+    tc.style.background = 'transparent';
+    tc.style.minWidth = '';
+    tc.style.fontSize = '14px';
+    hint.style.display = 'none';
+  }
+}
+
+function startManualTimecode() {
+  updateVideoControls();
+}
+
+function startTimecodeTracker() {
+  if (timecodeInterval) clearInterval(timecodeInterval);
+  timecodeInterval = setInterval(function() {
+    var tc = null;
+    if (videoMode === 'html5' && videoEl && !videoEl.paused) {
+      tc = videoEl.currentTime;
+    } else if (videoMode === 'youtube' && ytPlayer && typeof ytPlayer.getCurrentTime === 'function') {
+      tc = ytPlayer.getCurrentTime();
+    } else if (videoMode === 'vimeo' && window._vimeoPlayer) {
+      window._vimeoPlayer.getCurrentTime().then(function(t) {
+        document.getElementById('videoTimecode').textContent = formatTimecode(t);
+      });
+      return; // async, skip sync update
+    }
+    if (tc !== null) {
+      document.getElementById('videoTimecode').textContent = formatTimecode(tc);
+    }
+  }, 250);
+}
+
+function formatTimecode(seconds) {
+  var m = Math.floor(seconds / 60);
+  var s = Math.floor(seconds % 60);
+  return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+}
+
+function videoPlayPause() {
+  if (videoMode === 'html5' && videoEl) {
+    if (videoEl.paused) videoEl.play(); else videoEl.pause();
+  } else if (videoMode === 'youtube' && ytPlayer) {
+    var state = ytPlayer.getPlayerState();
+    if (state === 1) ytPlayer.pauseVideo(); else ytPlayer.playVideo();
+  } else if (videoMode === 'vimeo' && window._vimeoPlayer) {
+    window._vimeoPlayer.getPaused().then(function(paused) {
+      if (paused) window._vimeoPlayer.play(); else window._vimeoPlayer.pause();
+    });
+  }
+}
+
+function videoSeek(delta) {
+  if (videoMode === 'html5' && videoEl) {
+    videoEl.currentTime = Math.max(0, videoEl.currentTime + delta);
+    document.getElementById('videoTimecode').textContent = formatTimecode(videoEl.currentTime);
+  } else if (videoMode === 'youtube' && ytPlayer) {
+    var t = ytPlayer.getCurrentTime() + delta;
+    ytPlayer.seekTo(Math.max(0, t), true);
+    document.getElementById('videoTimecode').textContent = formatTimecode(t);
+  } else if (videoMode === 'vimeo' && window._vimeoPlayer) {
+    window._vimeoPlayer.getCurrentTime().then(function(t) {
+      window._vimeoPlayer.setCurrentTime(Math.max(0, t + delta));
+    });
+  }
+}
+
+function stampTimecode() {
+  var slide = curSlide();
+  if (!slide) return;
+  var tc = document.getElementById('videoTimecode').textContent;
+  slide.timecode = tc;
+  renderEditor();
+  refreshLive();
+  toast('Timecode ' + tc + ' stamped');
+}
+
+// ============================================================
+// PREVIEW TOGGLE + RESIZE + MODAL
+// ============================================================
+var previewHidden = false;
+function togglePreview() {
+  previewHidden = !previewHidden;
+  // Only hide the slide scroll area, keep video + header visible
+  document.getElementById('previewScroll').style.display = previewHidden ? 'none' : 'flex';
+  document.getElementById('previewToggleBtn').textContent = previewHidden ? 'Show Slides' : 'Hide Slides';
+}
+
+// Drag resize
+(function initResize() {
+  var handle = document.getElementById('previewResizeHandle');
+  var panel = document.getElementById('previewPanel');
+  var dragging = false;
+  handle.addEventListener('mousedown', function(e) {
+    dragging = true;
+    handle.classList.add('dragging');
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    e.preventDefault();
+  });
+  document.addEventListener('mousemove', function(e) {
+    if (!dragging) return;
+    var newW = window.innerWidth - e.clientX;
+    if (newW < 200) newW = 200;
+    if (newW > 800) newW = 800;
+    panel.style.width = newW + 'px';
+  });
+  document.addEventListener('mouseup', function() {
+    if (dragging) {
+      dragging = false;
+      handle.classList.remove('dragging');
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    }
+  });
+})();
+
+// Nav panel resize
+(function initNavResize() {
+  var handle = document.getElementById('navResizeHandle');
+  var panel = document.getElementById('navPanel');
+  var dragging = false;
+  handle.addEventListener('mousedown', function(e) {
+    dragging = true;
+    handle.classList.add('dragging');
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    e.preventDefault();
+  });
+  document.addEventListener('mousemove', function(e) {
+    if (!dragging) return;
+    var newW = e.clientX;
+    if (newW < 160) newW = 160;
+    if (newW > 400) newW = 400;
+    panel.style.width = newW + 'px';
+  });
+  document.addEventListener('mouseup', function() {
+    if (dragging) {
+      dragging = false;
+      handle.classList.remove('dragging');
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    }
+  });
+})();
+
+// Full-size modal
+function openPreviewModal(si, sli) {
+  var slide = course.sessions[si].slides[sli];
+  document.getElementById('previewModalContent').outerHTML = buildSlidePreview(slide, si, sli, false, true);
+  document.getElementById('previewModal').classList.add('show');
+}
+function closePreviewModal() {
+  document.getElementById('previewModal').classList.remove('show');
+}
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') closePreviewModal();
+});
+
+// ============================================================
+// UTILS
+// ============================================================
+
+// Match plugin's bodySize scaling: font size as % of slide width (cqi)
+// Plugin: ≤150ch→48px/1920=2.5%, ≤300→2.29%, ≤500→2.08%, ≤750→1.875%, 750+→1.67%
+function bodyFontCqi(text) {
+  var len = (text || '').length;
+  if (len <= 150) return 2.5;
+  if (len <= 300) return 2.29;
+  if (len <= 500) return 2.08;
+  if (len <= 750) return 1.875;
+  return 1.67;
+}
+// REF_OFFSET = 8px → on 1920 that's 0.417% less
+function refFontCqi(text) {
+  return bodyFontCqi(text) - 0.42;
+}
+
+function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function toast(msg) { var el=document.getElementById('toast'); el.textContent=msg; el.classList.add('show'); setTimeout(function(){el.classList.remove('show');},2000); }
+</script>
+
+</body>
+</html>

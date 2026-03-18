@@ -1,0 +1,13 @@
+name = "classroom-api"
+main = "index.js"
+compatibility_date = "2024-12-01"
+
+[vars]
+GITHUB_OWNER = "BRANDONIBEN"
+GITHUB_REPO = "classroom-slide-builder"
+GITHUB_BRANCH = "main"
+ALLOWED_ORIGIN = "https://classroom.brandoniben.com"
+
+# Deploy: wrangler deploy
+# Set secret: wrangler secret put GITHUB_TOKEN
+# Custom domain: add api-classroom.brandoniben.com in Cloudflare dashboard → Workers Routes

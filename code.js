@@ -201,6 +201,12 @@ figma.ui.onmessage = async function (msg) {
   }
   if (msg.type === 'buildAll') {
     try {
+      console.log('[PLUGIN] buildAll received:', msg.sessionGroups ? msg.sessionGroups.length : 0, 'groups,', msg.totalSessions, 'totalSessions');
+      if (msg.sessionGroups) {
+        for (var gi = 0; gi < msg.sessionGroups.length; gi++) {
+          console.log('[PLUGIN]   Group', gi, ': S' + msg.sessionGroups[gi].sessionNum, '(' + msg.sessionGroups[gi].slides.length + ' slides)');
+        }
+      }
       if (msg.colors) applyCustomColors(msg.colors);
       if (msg.fontConfig) await applyFontConfig(msg.fontConfig);
       var logoData = msg.logoData || { svg: null, bgColor: null };
@@ -1636,6 +1642,7 @@ async function buildSlides(slides, sessionNum, sessionName, courseName, logoData
 // ============================================================
 
 async function buildAllSessions(sessionGroups, courseName, logoData, totalSessions, includePageNumbers) {
+  console.log('[PLUGIN] buildAllSessions called with', sessionGroups.length, 'groups');
   await loadAllFonts();
 
   var totalSlides = 0;
@@ -1692,6 +1699,10 @@ async function buildAllSessions(sessionGroups, courseName, logoData, totalSessio
     }
 
     totalSlides += slides.length + 1; // +1 for cover
+
+    // Yield to Figma UI thread between sessions to prevent timeout
+    await new Promise(function(resolve) { setTimeout(resolve, 200); });
+    console.log('[PLUGIN] Built session', (i + 1), 'of', sessionGroups.length, '(' + slides.length + ' slides)');
   }
 
   // Switch to the first page
