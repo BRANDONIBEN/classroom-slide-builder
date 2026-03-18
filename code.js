@@ -72,6 +72,9 @@ figma.showUI(__html__, { width: 480, height: 320 });
   setTimeout(function () {
     figma.ui.postMessage({ type: 'overrideCount', count: getOverrideCount() });
     sendPageCharts();
+    // Check if print pages already exist
+    var hasPrint = figma.root.children.some(function (p) { return p.name.indexOf('[PRINT]') === 0; });
+    if (hasPrint) figma.ui.postMessage({ type: 'printPagesReady' });
   }, 100);
 })();
 
@@ -167,6 +170,8 @@ function sendPageCharts() {
 // Send chart data on page change too
 figma.on('currentpagechange', function () {
   sendPageCharts();
+  // Reset edit state when page changes
+  figma.ui.postMessage({ type: 'resetEdit' });
 });
 
 // Clean up preview frame when plugin closes
@@ -587,6 +592,10 @@ figma.ui.onmessage = async function (msg) {
   if (msg.type === 'scanPage') {
     sendPageCharts();
   }
+  if (msg.type === 'getFilteredOverrideCount') {
+    var count = getFilteredOverrideCount(msg.sessionNums);
+    figma.ui.postMessage({ type: 'overrideCount', count: count });
+  }
   // V2: Notes
   if (msg.type === 'saveNote') {
     saveSlideNote(msg.sessionNum, msg.slideNum, msg.text);
@@ -934,6 +943,17 @@ function clearAllOverrides() {
 
 function getOverrideCount() {
   return JSON.parse(figma.root.getPluginData('overrideIndex') || '[]').length;
+}
+
+function getFilteredOverrideCount(sessionNums) {
+  if (!sessionNums || sessionNums.length === 0) return getOverrideCount();
+  var index = JSON.parse(figma.root.getPluginData('overrideIndex') || '[]');
+  var count = 0;
+  for (var i = 0; i < index.length; i++) {
+    var match = index[i].match(/S(\d+)_(\d+)$/);
+    if (match && sessionNums.indexOf(parseInt(match[1])) !== -1) count++;
+  }
+  return count;
 }
 
 function getAllOverrides() {
@@ -1465,7 +1485,7 @@ function cleanAttribution(attr) {
 async function createPrintPage(sourcePage) {
   var printPage = figma.createPage();
   printPage.name = '[PRINT] ' + sourcePage.name;
-  printPage.backgrounds = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }];
+  printPage.backgrounds = [{ type: 'SOLID', color: { r: 0.961, g: 0.961, b: 0.961 } }];
 
   var slideFrames = [];
   sourcePage.children.forEach(function (child) {
@@ -1477,14 +1497,14 @@ async function createPrintPage(sourcePage) {
 
   for (var i = 0; i < slideFrames.length; i++) {
     var clone = slideFrames[i].clone();
-    clone.x = 0;
-    clone.y = i * (1080 + 40);
-    // White background
+    clone.x = i * (1920 + 40);
+    clone.y = 0;
+    // White slide background
     clone.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }];
-    // Convert all text to black
+    // Convert all text to black, preserving original opacity
     clone.findAll(function (n) { return n.type === 'TEXT'; }).forEach(function (t) {
       t.fills = [{ type: 'SOLID', color: { r: 0, g: 0, b: 0 } }];
-      t.opacity = 1;
+      // Keep original opacity — don't force to 1
     });
     // Ensure page number on print slides (starting from page 2)
     if (i > 0) {
@@ -1993,11 +2013,31 @@ function buildListSlide(frame, slide) {
 }
 
 function buildBodySlide(frame, slide) {
-  // If title is a scripture reference, move it to attribution instead of showing as header
+  // If title is a scripture reference, check if the body has a more specific ref
+  // (e.g. title "Revelation 4" + body contains "Revelation 4:6")
+  // If so, keep title as title and let the body ref be the attribution
   var scriptureFromTitle = '';
   if (slide.title && isScriptureTitle(slide.title)) {
-    scriptureFromTitle = slide.title;
-    slide.title = '';
+    var bodyHasSpecificRef = false;
+    var titleBase = slide.title.replace(/\s+/g, '').toLowerCase();
+    var bodyLines = (slide.body || '').split('\n');
+    for (var bl = 0; bl < bodyLines.length; bl++) {
+      var ln = bodyLines[bl].trim();
+      if (isScriptureTitle(ln)) {
+        var refBase = ln.replace(/\s+/g, '').toLowerCase();
+        // Check if body ref is more specific (has : verse) and shares same book/chapter
+        if (refBase.indexOf(':') !== -1 && refBase.indexOf(titleBase) === 0) {
+          bodyHasSpecificRef = true;
+          break;
+        }
+      }
+    }
+    if (bodyHasSpecificRef) {
+      // Keep title as title — body's specific ref will become attribution naturally
+    } else {
+      scriptureFromTitle = slide.title;
+      slide.title = '';
+    }
   }
 
   // Detect definition-style content (lines with "=") BEFORE polishText merges lines
@@ -2808,6 +2848,26 @@ function extractAttribution(text) {
       body: quoteBody,
       attribution: inlineMatch[2].trim()
     };
+  }
+
+  // 2b. Scripture combo: context line(s) + scripture ref line + verse text
+  // e.g. "John gets a vision of the Throne Room.\nRevelation 4:6\n"and before the throne..."
+  // The scripture ref line becomes attribution, everything else stays as body
+  var comboLines = s.split('\n');
+  for (var ci = 0; ci < comboLines.length; ci++) {
+    var cln = comboLines[ci].trim();
+    if (isScriptureTitle(cln) && cln.indexOf(':') !== -1) {
+      // Found a scripture reference line in the middle/start of body
+      var beforeRef = comboLines.slice(0, ci).join('\n').trim();
+      var afterRef = comboLines.slice(ci + 1).join('\n').trim();
+      // Combine context + verse as body, use the ref as attribution
+      var comboBody = '';
+      if (beforeRef) comboBody = beforeRef;
+      if (afterRef) comboBody = comboBody ? comboBody + '\n' + afterRef : afterRef;
+      if (comboBody) {
+        return { body: comboBody, attribution: cln };
+      }
+    }
   }
 
   // 3. Last line starts with dash: "- Author" or "— Author"

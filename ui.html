@@ -491,9 +491,15 @@
 
 <!-- BUILD PANEL -->
 <div id="buildPanel" class="panel active">
-<div id="dataSourceIndicator" style="font-size:10px;color:#666;margin-bottom:4px;display:flex;align-items:center;gap:4px;">
-  <span id="dataSourceDot" style="width:6px;height:6px;border-radius:50%;background:#6bcb77;display:inline-block;"></span>
-  <span id="dataSourceText">Connected to Dropbox</span>
+<div id="dataSourceIndicator" style="font-size:10px;color:#666;margin-bottom:4px;display:flex;flex-direction:column;gap:3px;">
+  <div style="display:flex;align-items:center;gap:4px;">
+    <span id="githubDot" style="width:6px;height:6px;border-radius:50%;background:#888;display:inline-block;"></span>
+    <span id="githubStatusText">GitHub: checking...</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:4px;">
+    <span id="dropboxDot" style="width:6px;height:6px;border-radius:50%;background:#888;display:inline-block;"></span>
+    <span id="dropboxStatusText">Dropbox: checking...</span>
+  </div>
 </div>
 <div class="row">
   <div class="field">
@@ -679,7 +685,8 @@
 </div>
 
 <div id="chartLocators" style="display:none;background:#2a2a2a;border:1px solid #3a3a3a;border-radius:6px;padding:8px 12px;">
-  <label style="margin-bottom:4px;">Charts on this page</label>
+  <label style="margin-bottom:2px;">Blank Slides — Need Artwork</label>
+  <div style="font-size:10px;color:#666;margin-bottom:6px;">These slides are placeholders. Click to navigate, then add your design.</div>
   <div id="chartLocatorList" style="display:flex;flex-direction:column;gap:4px;"></div>
 </div>
 
@@ -688,9 +695,12 @@
   <button id="clearAllOverridesBtn" style="flex:0 0 auto;padding:3px 8px;font-size:10px;background:#333;color:#c87070;border:1px solid #3a3a3a;border-radius:3px;cursor:pointer;">Clear All</button>
 </div>
 
-<div id="printCleanupRow" style="display:none;align-items:center;justify-content:space-between;background:#1e2d1e;border:1px solid #2d4a2d;border-radius:6px;padding:10px 14px;margin:6px 0;">
-  <span style="font-size:11px;color:#6bcb77;line-height:1.4;">Print pages ready<br><span style="color:#888;font-size:10px;">File › Export Frames to PDF</span></span>
-  <button id="cleanPrintBtn" style="flex:0 0 auto;padding:5px 12px;font-size:11px;background:#c87070;color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:500;">Remove</button>
+<div id="printSection" style="background:#2a2a2a;border:1px solid #3a3a3a;border-radius:6px;padding:10px 14px;margin:6px 0;">
+  <div id="printCleanupRow" style="display:none;align-items:center;justify-content:space-between;margin-bottom:8px;">
+    <span style="font-size:11px;color:#ccc;line-height:1.4;">Print pages ready<br><span style="color:#888;font-size:10px;">File &#8250; Export Frames to PDF</span></span>
+    <button id="cleanPrintBtn" style="flex:0 0 auto;padding:5px 10px;font-size:10px;background:#c87070;color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:500;">Clear</button>
+  </div>
+  <button id="printCurrentPageBtn" style="width:100%;padding:6px;border-radius:4px;border:1px solid #3a3a3a;font-size:11px;background:#333;color:#aaa;cursor:pointer;font-weight:500;">Generate Print View from Current Page</button>
 </div>
 
 <div class="status" id="status"></div>
@@ -699,8 +709,6 @@
   <button id="cancelBtn">Cancel</button>
   <button id="buildBtn" disabled>Build Slides</button>
 </div>
-
-<button id="printCurrentPageBtn" style="width:100%;padding:8px;border-radius:6px;border:1px solid #3a3a3a;font-size:12px;background:#2a2a2a;color:#aaa;cursor:pointer;">Generate Print View from Current Page</button>
 
 </div><!-- /buildPanel -->
 
@@ -731,6 +739,14 @@
     <div id="qaSpellList" style="display:flex;flex-direction:column;gap:4px;max-height:400px;overflow-y:auto;"></div>
     <div id="qaSpellCount" style="font-size:10px;color:#888;margin-top:4px;"></div>
     <div id="qaSpellEmpty" style="display:none;font-size:11px;color:#666;text-align:center;padding:20px;">Click "Scan Page" to check all slides for text issues.</div>
+  </div>
+</div>
+
+<!-- Diagnostic Log -->
+<div style="margin-top:6px;">
+  <div id="diagToggle" style="font-size:9px;color:#555;cursor:pointer;text-align:right;user-select:none;">Diagnostics &#9654;</div>
+  <div id="diagBody" style="display:none;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:4px;padding:6px;margin-top:4px;max-height:150px;overflow-y:auto;">
+    <div id="diagLog" style="font-size:9px;font-family:monospace;color:#777;line-height:1.5;white-space:pre-wrap;"></div>
   </div>
 </div>
 
@@ -771,7 +787,9 @@ async function refreshDropboxToken() {
   return DROPBOX_TOKEN;
 }
 
-// Dropbox paths: data in app folder, Doc Watch for content team PDFs
+// GitHub raw URL for JSON data (public, no auth)
+var GITHUB_DATA_URL = 'https://raw.githubusercontent.com/BRANDONIBEN/classroom-slide-builder/main/data';
+// Dropbox paths: app folder for page images, Doc Watch for content team PDFs
 var DROPBOX_DATA_PATH = '/Apps/Figma Classroom Slide Builder';
 var DROPBOX_DOC_WATCH_PATH = '/Passion Equip Shared/Content/07 - Classroom/00 Doc Watch';
 
@@ -810,7 +828,7 @@ async function dropboxDownload(filePath) {
 
 async function loadRemoteIndex() {
   try {
-    var resp = await dropboxDownload(DROPBOX_DOC_WATCH_PATH + '/index.json');
+    var resp = await fetch(GITHUB_DATA_URL + '/index.json');
     var index = await resp.json();
     COURSES = {};
     for (var i = 0; i < index.courses.length; i++) {
@@ -818,8 +836,8 @@ async function loadRemoteIndex() {
       COURSES[c.id] = { name: c.name, sessions: c.sessions, file: c.file };
     }
     REMOTE_MODE = true;
-    document.getElementById('dataSourceDot').style.background = '#6bcb77';
-    document.getElementById('dataSourceText').textContent = 'Connected to Dropbox \u2014 Doc Watch';
+    document.getElementById('githubDot').style.background = '#6bcb77';
+    document.getElementById('githubStatusText').textContent = 'GitHub: course data loaded';
     return true;
   } catch (e) {
     console.warn('Dropbox index load failed:', e);
@@ -832,7 +850,7 @@ async function loadRemoteCourseText(courseId) {
   var course = COURSES[courseId];
   if (!course || !course.file) return '';
   try {
-    var resp = await dropboxDownload(DROPBOX_DOC_WATCH_PATH + '/' + course.file);
+    var resp = await fetch(GITHUB_DATA_URL + '/' + course.file);
     var text = await resp.json();
     COURSE_TEXT[courseId] = text;
     return text;
@@ -844,15 +862,30 @@ async function loadRemoteCourseText(courseId) {
 
 // Initialize: try remote first, fall back to embedded
 async function initCourseData() {
+  addDiagLog('Loading course index from GitHub...');
+  document.getElementById('githubDot').style.background = '#D4A853';
+  document.getElementById('githubStatusText').textContent = 'GitHub: connecting...';
+  document.getElementById('dropboxDot').style.background = '#D4A853';
+  document.getElementById('dropboxStatusText').textContent = 'Dropbox: connecting...';
   var loaded = await loadRemoteIndex();
-  if (!loaded) {
+  if (loaded) {
+    addDiagLog('GitHub: index loaded (' + Object.keys(COURSES).length + ' courses)');
+  } else {
+    addDiagLog('GitHub: failed, using fallback data');
     useFallbackData();
   }
   // Load page map for source view (V2)
   try {
     var pmResp = await dropboxDownload(DROPBOX_DATA_PATH + '/page_map.json');
     PAGE_MAP = await pmResp.json();
-  } catch (e) { console.warn('Page map not available:', e); }
+    document.getElementById('dropboxDot').style.background = '#6bcb77';
+    document.getElementById('dropboxStatusText').innerHTML = '<a href="' + DROPBOX_FOLDER_URL + '" target="_blank" style="color:#6bcb77;text-decoration:underline;">Dropbox Watch Folder</a> \u2014 connected';
+    addDiagLog('Dropbox: page map loaded (' + Object.keys(PAGE_MAP).length + ' courses)');
+  } catch (e) {
+    document.getElementById('dropboxDot').style.background = '#c87070';
+    document.getElementById('dropboxStatusText').textContent = 'Dropbox: page images unavailable';
+    addDiagLog('Dropbox page_map error: ' + e.message);
+  }
   // Populate UI
   var courseSelect = document.getElementById('courseSelect');
   courseSelect.innerHTML = '';
@@ -873,6 +906,7 @@ async function initCourseData() {
     await loadRemoteCourseText(courseIds[0]);
   }
   populateSessions();
+  setTimeout(refreshOverrideCount, 200);
 }
 
 function showNoCourses() {
@@ -894,8 +928,8 @@ function showNoCourses() {
 }
 
 function useFallbackData() {
-  document.getElementById('dataSourceDot').style.background = '#D4A853';
-  document.getElementById('dataSourceText').textContent = 'Offline \u2014 using embedded data';
+  document.getElementById('githubDot').style.background = '#D4A853';
+  document.getElementById('githubStatusText').textContent = 'GitHub: offline \u2014 using embedded data';
   if (typeof FALLBACK_COURSE_TEXT !== 'undefined') {
     COURSE_TEXT = FALLBACK_COURSE_TEXT;
   }
@@ -1395,10 +1429,28 @@ function updatePreview() {
   buildBtn.disabled = false;
 }
 
+function refreshOverrideCount() {
+  var courseId = courseSelect.value;
+  var course = COURSES[courseId];
+  if (!course) return;
+  var val = sessionSelect.value;
+  var sessionNums = [];
+  if (val === 'all') {
+    course.sessions.forEach(function (s) { sessionNums.push(s.num); });
+  } else {
+    sessionNums.push(parseInt(val));
+  }
+  parent.postMessage({ pluginMessage: { type: 'getFilteredOverrideCount', sessionNums: sessionNums } }, '*');
+}
+
 courseSelect.addEventListener('change', function () {
   populateSessions();
+  refreshOverrideCount();
 });
-sessionSelect.addEventListener('change', updatePreview);
+sessionSelect.addEventListener('change', function () {
+  updatePreview();
+  refreshOverrideCount();
+});
 // ============================================================
 // PASSWORD GATE
 // ============================================================
@@ -1546,6 +1598,8 @@ var tabEdit = document.getElementById('tabEdit');
 
 var editState = { frameId: null, frameX: 0, frameY: 0, sessionNum: 0, slideNum: 0, type: 'body', hasOverride: false };
 var hasEditData = false;
+var _pendingSwitchToEdit = false;
+var _pendingFocusNote = false;
 
 var qaPanel = document.getElementById('qaPanel');
 var tabQA = document.getElementById('tabQA');
@@ -1672,13 +1726,16 @@ function enterEditMode(data) {
 
   // V2 features population
   if (BUILD_VERSION === 'v2') {
-    // Source view — reset state, will render on toggle open
-    document.getElementById('sourceViewImage').style.display = 'none';
-    document.getElementById('sourceViewLoading').style.display = 'none';
-    document.getElementById('sourceViewEmpty').style.display = 'none';
-    // Close the section on slide change
-    document.getElementById('sourceViewBody').classList.remove('open');
-    document.getElementById('sourceViewArrow').classList.remove('open');
+    // Source view — if open, reload the correct page for the new slide
+    if (document.getElementById('sourceViewBody').classList.contains('open')) {
+      var srcCourseId = courseIdFromName(data.courseName);
+      if (PAGE_MAP && PAGE_MAP[srcCourseId]) {
+        srcPageState.courseId = srcCourseId;
+        srcPageState.totalPages = PAGE_MAP[srcCourseId].pageCount;
+        var newPage = getSourcePage(srcCourseId, data.sessionNum, data.slideNum);
+        loadSourcePage(newPage);
+      }
+    }
     // Diff view — update if open
     if (document.getElementById('diffViewBody').classList.contains('open')) updateDiffView();
     // Notes — new format: {text, author, timestamp}
@@ -1917,8 +1974,27 @@ window.onmessage = function (event) {
   if (!msg) return;
 
   // Edit mode: slide data from selected frame
+  if (msg.type === 'resetEdit') {
+    hasEditData = false;
+    editNoSelection.style.display = 'block';
+    editContent.style.display = 'none';
+    if (editPanel.classList.contains('active')) setTimeout(resizeUI, 20);
+    return;
+  }
   if (msg.type === 'editSlide') {
     enterEditMode(msg);
+    // Handle pending navigation from QA tab
+    if (_pendingSwitchToEdit) {
+      _pendingSwitchToEdit = false;
+      switchTab('edit');
+      if (_pendingFocusNote) {
+        _pendingFocusNote = false;
+        setTimeout(function () {
+          var noteInput = document.getElementById('noteTextarea');
+          if (noteInput) noteInput.focus();
+        }, 100);
+      }
+    }
     return;
   }
 
@@ -2187,11 +2263,12 @@ window.onmessage = function (event) {
     status.className = 'status';
   }
   if (msg.type === 'printPagesReady') {
-    status.textContent = 'Print pages created — use File > Export Frames to PDF';
+    status.textContent = 'Print view ready';
     status.className = 'status success';
-    document.getElementById('printCleanupRow').style.display = 'flex';
+    var pcRow = document.getElementById('printCleanupRow');
+    if (pcRow) pcRow.style.display = 'flex';
     buildBtn.disabled = false;
-    setTimeout(resizeUI, 20);
+    setTimeout(resizeUI, 50);
     return;
   }
   if (msg.type === 'printCleaned') {
@@ -2252,6 +2329,58 @@ document.getElementById('versionSelect').addEventListener('change', function () 
 });
 
 // ============================================================
+// ============================================================
+// DIAGNOSTIC LOG
+// ============================================================
+
+var diagLog = [];
+function addDiagLog(msg) {
+  var ts = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  diagLog.push('[' + ts + '] ' + msg);
+  if (diagLog.length > 50) diagLog.shift();
+  var el = document.getElementById('diagLog');
+  if (el) el.textContent = diagLog.join('\n');
+}
+
+document.getElementById('diagToggle').addEventListener('click', function () {
+  var body = document.getElementById('diagBody');
+  var isOpen = body.style.display !== 'none';
+  body.style.display = isOpen ? 'none' : 'block';
+  document.getElementById('diagToggle').innerHTML = isOpen ? 'Diagnostics &#9654;' : 'Diagnostics &#9660;';
+  setTimeout(resizeUI, 20);
+});
+
+// Service health checks
+async function checkServiceHealth() {
+  // GitHub status
+  try {
+    addDiagLog('Checking GitHub status...');
+    var ghResp = await fetch(GITHUB_DATA_URL + '/index.json', { method: 'HEAD' });
+    if (ghResp.ok) {
+      addDiagLog('GitHub: reachable (HTTP ' + ghResp.status + ')');
+    } else {
+      document.getElementById('githubDot').style.background = '#c87070';
+      document.getElementById('githubStatusText').textContent = 'GitHub: error (HTTP ' + ghResp.status + ')';
+      addDiagLog('GitHub: error HTTP ' + ghResp.status);
+    }
+  } catch (e) {
+    document.getElementById('githubDot').style.background = '#c87070';
+    document.getElementById('githubStatusText').textContent = 'GitHub: unreachable';
+    addDiagLog('GitHub: unreachable — ' + e.message);
+  }
+
+  // Dropbox status (via token refresh)
+  try {
+    addDiagLog('Checking Dropbox status...');
+    await refreshDropboxToken();
+    addDiagLog('Dropbox: token refresh OK');
+  } catch (e) {
+    document.getElementById('dropboxDot').style.background = '#c87070';
+    document.getElementById('dropboxStatusText').textContent = 'Dropbox: auth failed';
+    addDiagLog('Dropbox: auth error — ' + e.message);
+  }
+}
+
 // V2 FEATURES — JavaScript
 // ============================================================
 
@@ -2307,11 +2436,19 @@ async function loadSourcePage(pageNum) {
   }
 }
 
-// Get the PDF page for a session using the accurate session-to-page mapping
-function getSourcePage(courseId, sessionNum) {
-  if (!PAGE_MAP || !PAGE_MAP[courseId] || !PAGE_MAP[courseId].sessionStart) return 1;
-  var startPage = PAGE_MAP[courseId].sessionStart[String(sessionNum)];
-  return startPage || 1;
+// Get the PDF page for a specific slide using slide-level mapping, fallback to session start
+function getSourcePage(courseId, sessionNum, slideNum) {
+  if (!PAGE_MAP || !PAGE_MAP[courseId]) return 1;
+  // Try exact slide mapping first
+  var slidePages = PAGE_MAP[courseId].slidePages;
+  if (slidePages) {
+    var slideKey = 'S' + sessionNum + '_' + slideNum;
+    if (slidePages[slideKey]) return slidePages[slideKey];
+  }
+  // Fallback to session start
+  var sessionStart = PAGE_MAP[courseId].sessionStart;
+  if (sessionStart && sessionStart[String(sessionNum)]) return sessionStart[String(sessionNum)];
+  return 1;
 }
 
 // Determine course ID from footer course name
@@ -2342,9 +2479,7 @@ v2Toggle('sourceViewToggle', 'sourceViewBody', 'sourceViewArrow', async function
   }
   srcPageState.courseId = courseId;
   srcPageState.totalPages = PAGE_MAP[courseId].pageCount;
-  var sessionStart = PAGE_MAP[courseId].sessionStart || {};
-  var startPage = sessionStart[String(editState.sessionNum)] || 1;
-  document.getElementById('srcPageLabel').textContent = 'S' + editState.sessionNum + ' → Page ' + startPage + ' / ' + srcPageState.totalPages;
+  var startPage = getSourcePage(courseId, editState.sessionNum, editState.slideNum);
   loadSourcePage(startPage);
 });
 
@@ -2510,18 +2645,17 @@ function renderQANotes(notes) {
     goBtn.textContent = 'Go to Slide';
     goBtn.addEventListener('click', function (e) {
       e.stopPropagation();
+      _pendingSwitchToEdit = true;
       parent.postMessage({ pluginMessage: { type: 'zoomToFrame', frameId: item.frameId } }, '*');
-      // Small delay then switch to edit tab so user sees the slide
-      setTimeout(function () { switchTab('edit'); }, 200);
     });
     var editNoteBtn = document.createElement('button');
     editNoteBtn.style.cssText = 'padding:2px 8px;font-size:9px;background:#2a2a2a;color:#D4A853;border:1px solid #3a3a3a;border-radius:3px;cursor:pointer;font-weight:600;';
     editNoteBtn.textContent = 'Edit Note';
     editNoteBtn.addEventListener('click', function (e) {
       e.stopPropagation();
-      // Navigate to slide and switch to edit tab where note input is
+      _pendingSwitchToEdit = true;
+      _pendingFocusNote = true;
       parent.postMessage({ pluginMessage: { type: 'zoomToFrame', frameId: item.frameId } }, '*');
-      setTimeout(function () { switchTab('edit'); }, 200);
     });
     var delBtn = document.createElement('button');
     delBtn.style.cssText = 'padding:2px 8px;font-size:9px;background:#3a2a2a;color:#c87070;border:1px solid #4a3a3a;border-radius:3px;cursor:pointer;font-weight:600;';
@@ -2543,6 +2677,7 @@ function renderQANotes(notes) {
     card.appendChild(body);
     card.appendChild(actions);
     card.addEventListener('click', function () {
+      _pendingSwitchToEdit = true;
       parent.postMessage({ pluginMessage: { type: 'zoomToFrame', frameId: item.frameId } }, '*');
     });
     list.appendChild(card);
