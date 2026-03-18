@@ -454,6 +454,12 @@ var FILE_NAMES = {
   'bf_text.json': 'Biblical Finances',
   'wt_text.json': 'World Theology'
 };
+// CHANGELOG:
+// 2026-03-18  Initial webapp build. GitHub API integration via Cloudflare Worker.
+//             Scripture auto-lookup (KJV bible-api.com), inline book autocomplete.
+//             Course context menu (edit, version history, delete). Cover slide preview.
+//             Nav slide delete + multi-select. Raw text parser matches plugin logic.
+//             Skip PDF page numbers. Fix FILE_NAMES hoisting. Fix 16:9 aspect ratio.
 var TYPES = ['body','list','quote','scripture','statement','illustration','graphic','chart','table'];
 var TYPE_COLORS = {body:'#5b9bd5',list:'#8b5cf6',quote:'#d97706',scripture:'#6bcb77',statement:'#ec4899',illustration:'#14b8a6',graphic:'#f59e0b',chart:'#06b6d4',table:'#a855f7'};
 var BLOCK_TYPES = ['body','scripture','list','quote','table','illustration','graphic'];

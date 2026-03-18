@@ -1,6 +1,11 @@
 // ============================================================
 // Classroom Slide Builder — code.js (runs in Figma sandbox)
 // Supports: Essential Theology, Scripture Narrative, Biblical Finances
+//
+// CHANGELOG:
+// 2026-03-18  Remove Dropbox, GitHub-only data. Add structured JSON support.
+//             Per-session error handling in buildAllSessions. Skip PDF page
+//             numbers. Increase yield time between sessions. Diagnostic logging.
 // ============================================================
 
 figma.showUI(__html__, { width: 480, height: 320 });
@@ -1649,6 +1654,7 @@ async function buildAllSessions(sessionGroups, courseName, logoData, totalSessio
   var numSessions = sessionGroups.length;
   if (!totalSessions) totalSessions = numSessions;
 
+  var errors = [];
   for (var i = 0; i < sessionGroups.length; i++) {
     var group = sessionGroups[i];
     var slides = group.slides;
@@ -1657,52 +1663,61 @@ async function buildAllSessions(sessionGroups, courseName, logoData, totalSessio
 
     figma.ui.postMessage({ type: 'progress', current: i + 1, total: totalSessions });
 
-    // Always create a new page — never touch the current page
-    var page = figma.createPage();
+    try {
+      // Always create a new page — never touch the current page
+      var page = figma.createPage();
 
-    // Set page background and name
-    page.backgrounds = [{ type: 'SOLID', color: { r: 0.961, g: 0.961, b: 0.961 } }]; // #F5F5F5
-    page.name = courseName + ' \u2014 Class ' + sessionNum + ': ' + cleanSessionLabel(sessionName);
+      // Set page background and name
+      page.backgrounds = [{ type: 'SOLID', color: { r: 0.961, g: 0.961, b: 0.961 } }]; // #F5F5F5
+      page.name = courseName + ' \u2014 Class ' + sessionNum + ': ' + cleanSessionLabel(sessionName);
 
-    // Pre-compute progressive sizes for this session
-    var titleGroupMaxLen = {};
-    for (var g = 0; g < slides.length; g++) {
-      var sl = slides[g];
-      if ((sl.type === 'body' || sl.type === 'list') && sl.title) {
-        var key = sl.title;
-        var len = (sl.body || '').length;
-        if (!titleGroupMaxLen[key] || len > titleGroupMaxLen[key]) {
-          titleGroupMaxLen[key] = len;
+      // Pre-compute progressive sizes for this session
+      var titleGroupMaxLen = {};
+      for (var g = 0; g < slides.length; g++) {
+        var sl = slides[g];
+        if ((sl.type === 'body' || sl.type === 'list') && sl.title) {
+          var key = sl.title;
+          var len = (sl.body || '').length;
+          if (!titleGroupMaxLen[key] || len > titleGroupMaxLen[key]) {
+            titleGroupMaxLen[key] = len;
+          }
         }
       }
-    }
-    for (var g2 = 0; g2 < slides.length; g2++) {
-      var sl2 = slides[g2];
-      if ((sl2.type === 'body' || sl2.type === 'list') && sl2.title && titleGroupMaxLen[sl2.title]) {
-        sl2._groupSize = bodySize({ length: titleGroupMaxLen[sl2.title] });
+      for (var g2 = 0; g2 < slides.length; g2++) {
+        var sl2 = slides[g2];
+        if ((sl2.type === 'body' || sl2.type === 'list') && sl2.title && titleGroupMaxLen[sl2.title]) {
+          sl2._groupSize = bodySize({ length: titleGroupMaxLen[sl2.title] });
+        }
       }
+
+      // Cover slide first
+      var coverFrame = buildCoverSlide(courseName, sessionNum, sessionName, 0, 0, logoData, totalSessions);
+      page.appendChild(coverFrame);
+
+      // Build frames on this page
+      for (var index = 0; index < slides.length; index++) {
+        var slide = slides[index];
+        slide._courseName = courseName;
+        slide._sessionLabel = sessionName;
+        if (includePageNumbers) slide._pageNum = index + 2;
+        var x = (index + 1) * (W + 80);
+        var frame = buildOrCloneFrame(slide, x, 0);
+        page.appendChild(frame);
+      }
+
+      totalSlides += slides.length + 1; // +1 for cover
+      console.log('[PLUGIN] Built session', (i + 1), 'of', sessionGroups.length, '— S' + sessionNum + ' (' + slides.length + ' slides)');
+    } catch (sessionErr) {
+      console.error('[PLUGIN] ERROR building S' + sessionNum + ':', String(sessionErr));
+      errors.push('S' + sessionNum + ': ' + sessionErr.message);
     }
-
-    // Cover slide first
-    var coverFrame = buildCoverSlide(courseName, sessionNum, sessionName, 0, 0, logoData, totalSessions);
-    page.appendChild(coverFrame);
-
-    // Build frames on this page
-    for (var index = 0; index < slides.length; index++) {
-      var slide = slides[index];
-      slide._courseName = courseName;
-      slide._sessionLabel = sessionName;
-      if (includePageNumbers) slide._pageNum = index + 2;
-      var x = (index + 1) * (W + 80);
-      var frame = buildOrCloneFrame(slide, x, 0);
-      page.appendChild(frame);
-    }
-
-    totalSlides += slides.length + 1; // +1 for cover
 
     // Yield to Figma UI thread between sessions to prevent timeout
-    await new Promise(function(resolve) { setTimeout(resolve, 200); });
-    console.log('[PLUGIN] Built session', (i + 1), 'of', sessionGroups.length, '(' + slides.length + ' slides)');
+    await new Promise(function(resolve) { setTimeout(resolve, 300); });
+  }
+
+  if (errors.length > 0) {
+    figma.ui.postMessage({ type: 'error', message: 'Some sessions had errors: ' + errors.join('; ') });
   }
 
   // Switch to the first page

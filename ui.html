@@ -768,6 +768,11 @@
 // ============================================================
 // DATA CONFIG
 // ============================================================
+// CHANGELOG:
+// 2026-03-18  Remove Dropbox, GitHub-only data. Add structured JSON support
+//             (convertStructuredToSlides). Fix allOpt.selected, PARSED_CACHE
+//             clearing. Skip PDF page numbers. Async build handler.
+//             Diagnostic logging for parse/build flow.
 
 var PLUGIN_UNLOCKED = false;
 var PLUGIN_PASSWORD = 'equip';
@@ -1539,11 +1544,15 @@ document.getElementById('lockPassword').addEventListener('keydown', function (e)
 // Check if previously unlocked
 parent.postMessage({ pluginMessage: { type: 'checkUnlock' } }, '*');
 
-buildBtn.addEventListener('click', function () {
+buildBtn.addEventListener('click', async function () {
   var courseId = courseSelect.value;
   var val = sessionSelect.value;
+  // Ensure course text is loaded before building
+  await ensureCourseLoaded(courseId);
   var allParsed = getParsedSlides(courseId);
   var course = COURSES[courseId];
+
+  console.log('[BUILD] courseId=' + courseId + ', val=' + val + ', allParsed.length=' + allParsed.length + ', sessions=' + (course ? course.sessions.length : 0));
 
   if (val === 'all') {
     // Build entire course — one page per session
