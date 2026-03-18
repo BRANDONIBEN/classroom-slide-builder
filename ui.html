@@ -507,6 +507,13 @@
     <span id="dropboxDot" style="width:6px;height:6px;border-radius:50%;background:#888;display:inline-block;"></span>
     <span id="dropboxStatusText">Dropbox: checking...</span>
   </div>
+  <div style="display:flex;align-items:center;gap:4px;margin-top:2px;">
+    <button id="refreshDataBtn" onclick="refreshCourseData()" style="font-size:9px;padding:2px 8px;background:#2a2a2a;border:1px solid #3a3a3a;border-radius:3px;color:#D4A853;cursor:pointer;">&#8635; Refresh Data</button>
+    <a href="https://github.com/BRANDONIBEN/classroom-slide-builder/actions" target="_blank" style="font-size:9px;color:#555;text-decoration:underline;">Sync Now</a>
+  </div>
+</div>
+<div id="updateBanner" style="display:none;background:#3a2e1e;border:1px solid #D4A853;border-radius:4px;padding:6px 10px;margin-bottom:4px;font-size:10px;color:#D4A853;">
+  &#9888; Update available — run <code style="background:#2a2a2a;padding:1px 4px;border-radius:2px;">git pull</code> to get the latest version
 </div>
 <div class="row">
   <div class="field">
@@ -865,6 +872,37 @@ async function loadRemoteCourseText(courseId) {
     console.warn('Failed to load course text for ' + courseId + ':', e);
     return '';
   }
+}
+
+// Refresh data — clears cache and re-fetches from GitHub
+async function refreshCourseData() {
+  var btn = document.getElementById('refreshDataBtn');
+  btn.textContent = 'Refreshing...';
+  btn.disabled = true;
+  COURSE_TEXT = {};
+  COURSES = {};
+  REMOTE_MODE = false;
+  PAGE_MAP = null;
+  addDiagLog('Manual refresh triggered');
+  await initCourseData();
+  btn.textContent = '\u21BB Refresh Data';
+  btn.disabled = false;
+  addDiagLog('Refresh complete');
+}
+
+// Version check — compare local version with GitHub
+var PLUGIN_VERSION = '2.1.0';
+async function checkPluginVersion() {
+  try {
+    var resp = await fetch(GITHUB_DATA_URL.replace('/data', '/version.json') + '?t=' + Date.now());
+    if (resp.ok) {
+      var ver = await resp.json();
+      if (ver.version && ver.version !== PLUGIN_VERSION) {
+        document.getElementById('updateBanner').style.display = '';
+        addDiagLog('Update available: v' + ver.version + ' (current: v' + PLUGIN_VERSION + ')');
+      }
+    }
+  } catch (e) { /* silently fail version check */ }
 }
 
 // Initialize: try remote first, fall back to embedded
@@ -1470,6 +1508,7 @@ function unlockPlugin() {
   document.getElementById('uiWrapper').style.display = 'flex';
   // Token will be refreshed automatically on first Dropbox call
   initCourseData();
+  checkPluginVersion();
   // Load saved settings (colors, fonts, etc.) after unlock
   parent.postMessage({ pluginMessage: { type: 'loadSettings' } }, '*');
   setTimeout(resizeUI, 50);
