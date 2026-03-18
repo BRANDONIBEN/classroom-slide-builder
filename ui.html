@@ -277,6 +277,24 @@
     flex-wrap: wrap;
   }
 
+  /* V2 collapsible sections */
+  .v2-section { background:#2a2a2a;border:1px solid #3a3a3a;border-radius:6px;padding:10px 12px; }
+  .v2-toggle { display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none; }
+  .v2-toggle .v2-label { font-size:11px;font-weight:500;color:#999;text-transform:uppercase;letter-spacing:0.5px; }
+  .v2-toggle .arrow { font-size:10px;color:#666;transition:transform 0.15s; }
+  .v2-toggle .arrow.open { transform:rotate(90deg); }
+  .v2-body { display:none;margin-top:10px; }
+  .v2-body.open { display:block; }
+  .v2-pre { font-size:12px;color:#999;line-height:1.5;white-space:pre-wrap;max-height:200px;overflow-y:auto;padding:8px;background:#1e1e1e;border:1px solid #3a3a3a;border-radius:4px; }
+  .diff-add { background:#1a3a1a;color:#6bcb77; }
+  .diff-remove { background:#3a1a1a;color:#c87070;text-decoration:line-through; }
+  .spellcheck-item { font-size:11px;padding:4px 8px;border-radius:3px;background:#1e1e1e;border-left:3px solid #c87070;color:#ccc;line-height:1.4;display:flex;align-items:center;justify-content:space-between;gap:6px; }
+  .spellcheck-item.warning { border-left-color:#D4A853; }
+  .spellcheck-item .sc-actions { display:flex;gap:4px;flex-shrink:0; }
+  .spellcheck-item .sc-actions button { padding:2px 6px;font-size:9px;border-radius:3px;cursor:pointer;border:none;font-weight:600; }
+  .sc-fix { background:#2a3a2a;color:#6bcb77; }
+  .sc-ignore { background:#333;color:#888; }
+
   .edit-type-row button {
     flex: 0 0 auto;
     padding: 5px 10px;
@@ -326,11 +344,18 @@
 
 <div id="uiWrapper" style="display:none;flex-direction:column;gap:10px;">
 
-<h2>Classroom Slide Builder</h2>
+<div style="display:flex;align-items:center;justify-content:space-between;">
+  <h2>Classroom Slide Builder</h2>
+  <select id="versionSelect" style="padding:2px 4px;font-size:9px;font-weight:600;background:#2a2a2a;color:#6bcb77;border:1px solid #3a3a3a;border-radius:3px;cursor:pointer;outline:none;width:auto;">
+    <option value="v1">V1</option>
+    <option value="v2">V2</option>
+  </select>
+</div>
 
 <div class="tab-bar">
   <button class="tab active" id="tabBuild" data-tab="build">Build</button>
   <button class="tab" id="tabEdit" data-tab="edit">Edit Slide</button>
+  <button class="tab" id="tabQA" data-tab="qa" data-v2 style="display:none;">QA</button>
 </div>
 
 <!-- EDIT SLIDE PANEL -->
@@ -341,8 +366,11 @@
   </div>
   <div id="editContent" style="display:none;flex-direction:column;gap:10px;">
   <div style="background:#2a2a2a;border:1px solid #3a3a3a;border-radius:6px;padding:10px 12px;">
-    <div style="font-size:11px;color:#D4A853;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Editing Selected Slide</div>
-    <div id="editSlideInfo" style="font-size:12px;color:#999;"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;">
+      <div style="font-size:11px;color:#D4A853;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Editing Selected Slide</div>
+      <span data-v2 id="flagReviewBtn" style="display:none;cursor:pointer;font-size:14px;opacity:0.4;transition:opacity 0.15s;" title="Flag for review">&#9873;</span>
+    </div>
+    <div id="editSlideInfo" style="font-size:12px;color:#999;margin-top:4px;"></div>
   </div>
 
   <div class="edit-field">
@@ -389,6 +417,51 @@
     <div id="editVersionList" style="display:flex;flex-direction:column;gap:4px;"></div>
   </div>
 
+  <!-- V2: Source View (PDF page browser) -->
+  <div class="v2-section" data-v2 id="sourceViewSection" style="display:none;">
+    <div class="v2-toggle" id="sourceViewToggle">
+      <span class="v2-label">Source Document</span>
+      <span class="arrow" id="sourceViewArrow">&#9654;</span>
+    </div>
+    <div class="v2-body" id="sourceViewBody">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+        <button id="srcPrevPage" style="padding:3px 8px;font-size:11px;background:#333;color:#aaa;border:1px solid #3a3a3a;border-radius:3px;cursor:pointer;">&larr;</button>
+        <span id="srcPageLabel" style="font-size:11px;color:#999;">Page 1 / 1</span>
+        <button id="srcNextPage" style="padding:3px 8px;font-size:11px;background:#333;color:#aaa;border:1px solid #3a3a3a;border-radius:3px;cursor:pointer;">&rarr;</button>
+      </div>
+      <div id="sourceViewLoading" style="font-size:11px;color:#888;text-align:center;padding:12px;">Loading page...</div>
+      <img id="sourceViewImage" style="display:none;width:100%;border-radius:4px;border:1px solid #3a3a3a;" />
+      <div id="sourceViewEmpty" style="display:none;font-size:11px;color:#666;text-align:center;padding:12px;">No source document available</div>
+    </div>
+  </div>
+
+  <!-- V2: Diff View -->
+  <div class="v2-section" data-v2 id="diffViewSection" style="display:none;">
+    <div class="v2-toggle" id="diffViewToggle">
+      <span class="v2-label">Diff View</span>
+      <span class="arrow" id="diffViewArrow">&#9654;</span>
+    </div>
+    <div class="v2-body" id="diffViewBody">
+      <div style="font-size:10px;color:#666;display:flex;gap:12px;margin-bottom:6px;">
+        <span><span class="diff-add" style="padding:1px 4px;border-radius:2px;">+ Added</span></span>
+        <span><span class="diff-remove" style="padding:1px 4px;border-radius:2px;">- Removed</span></span>
+      </div>
+      <div style="font-size:10px;color:#666;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px;">Title</div>
+      <div class="v2-pre" id="diffTitleContent" style="margin-bottom:6px;max-height:60px;"></div>
+      <div style="font-size:10px;color:#666;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px;">Body</div>
+      <div class="v2-pre" id="diffBodyContent"></div>
+    </div>
+  </div>
+
+  <!-- V2: Quick Note (inline) -->
+  <div data-v2 id="quickNoteSection" style="display:none;">
+    <div style="display:flex;gap:6px;align-items:flex-start;">
+      <input type="text" id="noteTextarea" placeholder="Add a note..." style="flex:1;padding:6px 8px;background:#1e1e1e;border:1px solid #3a3a3a;border-radius:4px;color:#e0e0e0;font-size:11px;outline:none;">
+      <button id="saveNoteBtn" style="padding:6px 10px;font-size:10px;background:#2a2a3a;color:#7070c8;border:1px solid #3a3a4a;border-radius:3px;cursor:pointer;font-weight:600;white-space:nowrap;">Save</button>
+      <button id="deleteNoteBtn" style="padding:6px 8px;font-size:10px;background:#3a2a2a;color:#c87070;border:1px solid #4a3a3a;border-radius:3px;cursor:pointer;font-weight:600;display:none;">&#10005;</button>
+    </div>
+  </div>
+
   <div style="display:flex;gap:6px;flex-wrap:wrap;">
     <button id="commitBtnEdit" style="flex:1;padding:6px 8px;font-size:11px;background:#2a3a2a;color:#6bcb77;border:1px solid #3a4a3a;border-radius:4px;cursor:pointer;">Commit Manual Edits</button>
     <button id="insertLeftBtn" style="flex:0 0 auto;padding:6px 10px;font-size:11px;background:#2a2a3a;color:#7070c8;border:1px solid #3a3a4a;border-radius:4px;cursor:pointer;">+ Left</button>
@@ -418,6 +491,10 @@
 
 <!-- BUILD PANEL -->
 <div id="buildPanel" class="panel active">
+<div id="dataSourceIndicator" style="font-size:10px;color:#666;margin-bottom:4px;display:flex;align-items:center;gap:4px;">
+  <span id="dataSourceDot" style="width:6px;height:6px;border-radius:50%;background:#6bcb77;display:inline-block;"></span>
+  <span id="dataSourceText">Connected to Dropbox</span>
+</div>
 <div class="row">
   <div class="field">
     <label>Course</label>
@@ -627,6 +704,36 @@
 
 </div><!-- /buildPanel -->
 
+<!-- QA PANEL (V2 only) -->
+<div id="qaPanel" class="panel">
+  <div style="display:flex;gap:6px;margin-bottom:4px;">
+    <button class="tab active" id="qaTabNotes" style="flex:1;font-size:11px;padding:6px;">Notes &amp; Flags</button>
+    <button class="tab" id="qaTabSpell" style="flex:1;font-size:11px;padding:6px;">Text Check</button>
+  </div>
+
+  <!-- Notes & Flags sub-panel -->
+  <div id="qaNotesPanel">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+      <span style="font-size:11px;color:#999;text-transform:uppercase;letter-spacing:0.5px;">All Notes on Page</span>
+      <span id="qaNoteCount" style="font-size:10px;color:#888;"></span>
+    </div>
+    <div id="qaNotesLoading" style="font-size:11px;color:#888;padding:8px;text-align:center;">Loading...</div>
+    <div id="qaNotesList" style="display:flex;flex-direction:column;gap:6px;max-height:400px;overflow-y:auto;"></div>
+    <div id="qaNotesEmpty" style="display:none;font-size:11px;color:#666;text-align:center;padding:20px;">No notes on this page. Select a slide and add a note in the Edit tab.</div>
+  </div>
+
+  <!-- Text Check sub-panel -->
+  <div id="qaSpellPanel" style="display:none;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+      <span style="font-size:11px;color:#999;text-transform:uppercase;letter-spacing:0.5px;">Text Issues on Page</span>
+      <button id="qaRunPageCheck" style="padding:4px 10px;font-size:10px;background:#2a3a2a;color:#6bcb77;border:1px solid #3a4a3a;border-radius:3px;cursor:pointer;font-weight:600;">Scan Page</button>
+    </div>
+    <div id="qaSpellList" style="display:flex;flex-direction:column;gap:4px;max-height:400px;overflow-y:auto;"></div>
+    <div id="qaSpellCount" style="font-size:10px;color:#888;margin-top:4px;"></div>
+    <div id="qaSpellEmpty" style="display:none;font-size:11px;color:#666;text-align:center;padding:20px;">Click "Scan Page" to check all slides for text issues.</div>
+  </div>
+</div>
+
 </div><!-- /uiWrapper -->
 
 <script>var FALLBACK_COURSE_TEXT = {};</script>
@@ -636,12 +743,33 @@
 // DROPBOX DATA CONFIG
 // ============================================================
 
-// Access token — base64 encoded, unlocked by password
-var _ENC_TOKEN = 'c2wudS5BR1h1X2lyR0N2OTVGRUhyUklmOE8tOHZKVGFNOXJ1UlRLZXNIdGFJVFREWUJhSWtwRVpnbGtMSmFEM25GM2FaYUc3U3JuYm9LWFpLanh' +
-'oYTV6NGRmUlEzbDdVLU9fWDVhUkppQmFueEhZUW1UM3hYcmdUQXl4dHNaYmhodDZHRXNWaGcxRjdHUlc0NUJEZ2c4d0NSZVJqbUFxQTAwZS1UbFYxTnBQUjRyZlFvVGhFR2ZGd1JuZFNnVm02WXBWYjUteE9TV25YcGsxSXRsZnI0czFZdE9xclN6M2xtaUJsdkJzXzRtd0h6UFlYYjQwSERCUVVDTjZ2X3FzRnNIT285MU9IQlVlY2xmVXFTZVd0cjV3ZHhaR3QyRENacEdCeUFEUG1tR2UtUURQRlZaUGN1SkU0c25DV2cwbzNjUFlQalo1X1dnTi0waVExckNWX3NHcHlYdGM5YVhBVUVnbWN2SHRicTQ4RUlMWmY1M2x2X1ZjSDZmVXFZRVpoZG9zcllRSGx5ZEpFQTFaX2RnUUx3T2pJblVaN3dkdmxsRU1haDlVeUctOWN4SjZIOGRsNndHbzdMTTN6eUNBVmJsbTNOZ0xqd2g3Nnk4dFQzaE5FSEFnMFcxQXFiOWUwbkRHOGR2RGRYUVoxOEJrOFJMRWp3YnlxMVNSdlEzLWVVWWx1d1c0dFFCenJwTDZTdkUwbVFobkVzNjhNRzlvRFY2TmRwMXk2LW1QVUVlV0dUcUo1cF90TmppM2Z3cnIzWmdMZmlqbEJnd3cwcGFvUXRZc1FrTGZRU2NEYkQtenRYN1c3YkFTMW05NjhmTGo0YVJuWG51dWJOdDJrT3dfdi1tU1FlTDlsbEIwYnZPSWRhUFZlQUY5eUpVaGMtNEVjSlc5dUo0bXhySmh0VkNNYjN4TFA0ZHJ6bDJ4eTd5QW1ybk9KSjZ6X1d0NmcyR2xMUWRvUTVXc1MzazcyeGE1YnF2YkNIV0VnSzB5SWRua3VjNm5jYmJ4ODBKY2ZmZVJJQUVIR3E1eFVGQmpMTFNNLTh0XzNIeTJ5UnZnTUVoVmZ6WnlSblZaX0RLT2taX1JGLXppZzFscWl2LWdCTlBsSk8yMlhMVWxsTnkzZGVnOVlWcDU1dmVVdFYxS0tHc3lIWUw2WG5NZFByNnp0dDU1el9teVZSRXM3b2U2U3hqVFBIT0VITnRGeXJhWHQwTjJNMDd3MjBZcWVmelRYc0dpa0FyUGlRVDVsb1N6aFlGWGdzeGxVM01jQlliYkF1SVQ1UFdxT001dHhLZTVkVDJFcWJxMmtoR1JEalhSUnM2alY2Vzd6TnpGSm5TQmlJWjdxOXlLZWsxdW1ReDFJMFRBa3V3X3ozWXVzU0lLV2c5RGwxbTNoWDVOcVlnY2FGN1k4TFF3ak5WXzROMXQ2QzNCMUVBVHA3Zno1NE5wd01kQWxueFkweGRlNTNTMkdyOFNNd0kyM1dkTjRVU3BwS2NaMVBBSk0tVUFmZi1qdzF1THBRVFE0Y2tQS2FVUHNjdGhfMGRTcTZxXzFHQWEtbDZZRVg4RnV1OWFzVXB3dllzaG1nM2pnNDJKUFZKQ3BHMHlZQjNRSWoxRm5zSTRDQko3OXJqdVd1bFhsV0s1REdfWUtZUXMtQXd5c0ZLZnFEQVdZUVRBOXh6TzdpaWk3LU1iWkVXSWtjMDV1ZDBmXzlId3kwX3VLZnY2dk1ET1hQTkxEQWtJeG5yNHJHWk5uNndERU01MUlUcU9rcWZicmlEalNWVmc=';
+// Dropbox OAuth2 refresh token flow — base64 encoded, unlocked by password
+var _ENC_REFRESH = 'MGNodjk5Zmx4ZklBQUFBQUFBQUFBUUF1QmdnTUhfaHhHajFHajlWaF9OX1pOMjZhNTU0RWYyczdXRGlyalJhOQ==';
+var _ENC_APP_KEY = 'eG5pM3Z6eWJiMHBucGVh';
+var _ENC_APP_SECRET = 'amltMnphMWRwaHp0cThu';
 
 var DROPBOX_TOKEN = '';
-var PLUGIN_PASSWORD = 'classroom-token';
+var PLUGIN_UNLOCKED = false;
+var PLUGIN_PASSWORD = 'equip';
+var BUILD_VERSION = 'v1';
+
+// Refresh the Dropbox access token using the refresh token
+async function refreshDropboxToken() {
+  var refreshToken = atob(_ENC_REFRESH);
+  var appKey = atob(_ENC_APP_KEY);
+  var appSecret = atob(_ENC_APP_SECRET);
+  var resp = await fetch('https://api.dropboxapi.com/oauth2/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: 'grant_type=refresh_token&refresh_token=' + encodeURIComponent(refreshToken) +
+          '&client_id=' + encodeURIComponent(appKey) +
+          '&client_secret=' + encodeURIComponent(appSecret)
+  });
+  if (!resp.ok) throw new Error('Token refresh failed: ' + resp.status);
+  var data = await resp.json();
+  DROPBOX_TOKEN = data.access_token;
+  return DROPBOX_TOKEN;
+}
 
 // Dropbox paths: data in app folder, Doc Watch for content team PDFs
 var DROPBOX_DATA_PATH = '/Apps/Figma Classroom Slide Builder';
@@ -653,9 +781,12 @@ var DROPBOX_FOLDER_URL = 'https://www.dropbox.com/scl/fo/aufcwbovza8thlzw6wt0v/A
 var COURSE_TEXT = {};
 var COURSES = {};
 var REMOTE_MODE = false;
+var PAGE_MAP = null; // loaded from Dropbox: {courseId: {pageCount, pages: {N: path}}}
+var SRC_PAGE_CACHE = {}; // cache of downloaded page images as base64
 
-// Download a file from the Dropbox app folder by path
+// Download a file from Dropbox — auto-refreshes token on 401
 async function dropboxDownload(filePath) {
+  if (!DROPBOX_TOKEN) await refreshDropboxToken();
   var resp = await fetch('https://content.dropboxapi.com/2/files/download', {
     method: 'POST',
     headers: {
@@ -663,12 +794,21 @@ async function dropboxDownload(filePath) {
       'Dropbox-API-Arg': JSON.stringify({ path: filePath })
     }
   });
+  if (resp.status === 401) {
+    await refreshDropboxToken();
+    resp = await fetch('https://content.dropboxapi.com/2/files/download', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + DROPBOX_TOKEN,
+        'Dropbox-API-Arg': JSON.stringify({ path: filePath })
+      }
+    });
+  }
   if (!resp.ok) throw new Error('Dropbox download failed: ' + resp.status);
   return resp;
 }
 
 async function loadRemoteIndex() {
-  if (!DROPBOX_TOKEN) return false;
   try {
     var resp = await dropboxDownload(DROPBOX_DOC_WATCH_PATH + '/index.json');
     var index = await resp.json();
@@ -678,6 +818,8 @@ async function loadRemoteIndex() {
       COURSES[c.id] = { name: c.name, sessions: c.sessions, file: c.file };
     }
     REMOTE_MODE = true;
+    document.getElementById('dataSourceDot').style.background = '#6bcb77';
+    document.getElementById('dataSourceText').textContent = 'Connected to Dropbox \u2014 Doc Watch';
     return true;
   } catch (e) {
     console.warn('Dropbox index load failed:', e);
@@ -704,9 +846,13 @@ async function loadRemoteCourseText(courseId) {
 async function initCourseData() {
   var loaded = await loadRemoteIndex();
   if (!loaded) {
-    // Use embedded fallback
     useFallbackData();
   }
+  // Load page map for source view (V2)
+  try {
+    var pmResp = await dropboxDownload(DROPBOX_DATA_PATH + '/page_map.json');
+    PAGE_MAP = await pmResp.json();
+  } catch (e) { console.warn('Page map not available:', e); }
   // Populate UI
   var courseSelect = document.getElementById('courseSelect');
   courseSelect.innerHTML = '';
@@ -748,7 +894,8 @@ function showNoCourses() {
 }
 
 function useFallbackData() {
-  // Load embedded text data from fallback-data.js (generated by scripts/embed-fallback.js)
+  document.getElementById('dataSourceDot').style.background = '#D4A853';
+  document.getElementById('dataSourceText').textContent = 'Offline \u2014 using embedded data';
   if (typeof FALLBACK_COURSE_TEXT !== 'undefined') {
     COURSE_TEXT = FALLBACK_COURSE_TEXT;
   }
@@ -1080,10 +1227,34 @@ fontToggle.addEventListener('click', function () {
 function findOriginalSlide(sessionNum, slideNum) {
   var courseId = document.getElementById('courseSelect').value;
   if (!courseId) return null;
-  var allParsed = getParsedSlides(courseId);
-  for (var i = 0; i < allParsed.length; i++) {
-    if (allParsed[i].sessionNum === sessionNum && allParsed[i].number === slideNum) {
-      return { type: allParsed[i].type, title: allParsed[i].title, body: allParsed[i].body, sessionNum: sessionNum, number: slideNum };
+  // Try all courses if current one doesn't have the slide
+  var courseIds = [courseId].concat(Object.keys(COURSES).filter(function (k) { return k !== courseId; }));
+  for (var ci = 0; ci < courseIds.length; ci++) {
+    var allParsed = getParsedSlides(courseIds[ci]);
+    for (var i = 0; i < allParsed.length; i++) {
+      if (allParsed[i].sessionNum === sessionNum && allParsed[i].number === slideNum) {
+        return { type: allParsed[i].type, title: allParsed[i].title, body: allParsed[i].body, sessionNum: sessionNum, number: slideNum };
+      }
+    }
+  }
+  return null;
+}
+
+// Async version that ensures course text is loaded first
+async function findOriginalSlideAsync(sessionNum, slideNum) {
+  var result = findOriginalSlide(sessionNum, slideNum);
+  if (result) return result;
+  // Try loading all course texts
+  var courseIds = Object.keys(COURSES);
+  for (var i = 0; i < courseIds.length; i++) {
+    if (!COURSE_TEXT[courseIds[i]]) {
+      await loadRemoteCourseText(courseIds[i]);
+    }
+    var allParsed = getParsedSlides(courseIds[i]);
+    for (var j = 0; j < allParsed.length; j++) {
+      if (allParsed[j].sessionNum === sessionNum && allParsed[j].number === slideNum) {
+        return { type: allParsed[j].type, title: allParsed[j].title, body: allParsed[j].body, sessionNum: sessionNum, number: slideNum };
+      }
     }
   }
   return null;
@@ -1233,9 +1404,10 @@ sessionSelect.addEventListener('change', updatePreview);
 // ============================================================
 
 function unlockPlugin() {
-  DROPBOX_TOKEN = atob(_ENC_TOKEN);
+  PLUGIN_UNLOCKED = true;
   document.getElementById('lockScreen').style.display = 'none';
   document.getElementById('uiWrapper').style.display = 'flex';
+  // Token will be refreshed automatically on first Dropbox call
   initCourseData();
   // Load saved settings (colors, fonts, etc.) after unlock
   parent.postMessage({ pluginMessage: { type: 'loadSettings' } }, '*');
@@ -1375,26 +1547,33 @@ var tabEdit = document.getElementById('tabEdit');
 var editState = { frameId: null, frameX: 0, frameY: 0, sessionNum: 0, slideNum: 0, type: 'body', hasOverride: false };
 var hasEditData = false;
 
+var qaPanel = document.getElementById('qaPanel');
+var tabQA = document.getElementById('tabQA');
+
 function switchTab(tabName) {
   tabBuild.classList.toggle('active', tabName === 'build');
   tabEdit.classList.toggle('active', tabName === 'edit');
+  if (tabQA) tabQA.classList.toggle('active', tabName === 'qa');
   buildPanel.classList.toggle('active', tabName === 'build');
   editPanel.classList.toggle('active', tabName === 'edit');
+  if (qaPanel) qaPanel.classList.toggle('active', tabName === 'qa');
   if (tabName === 'edit') {
     editNoSelection.style.display = hasEditData ? 'none' : 'block';
     editContent.style.display = hasEditData ? 'flex' : 'none';
     if (hasEditData) sendEditPreview();
-    // Load trash list
     parent.postMessage({ pluginMessage: { type: 'getTrash' } }, '*');
   } else {
-    // Remove preview when leaving edit tab
     parent.postMessage({ pluginMessage: { type: 'removePreview' } }, '*');
+  }
+  if (tabName === 'qa' && BUILD_VERSION === 'v2') {
+    parent.postMessage({ pluginMessage: { type: 'getAllNotes' } }, '*');
   }
   setTimeout(resizeUI, 20);
 }
 
 tabBuild.addEventListener('click', function () { switchTab('build'); });
 tabEdit.addEventListener('click', function () { switchTab('edit'); });
+if (tabQA) tabQA.addEventListener('click', function () { switchTab('qa'); });
 
 function setEditType(type, triggerPreview) {
   editState.type = type;
@@ -1489,6 +1668,32 @@ function enterEditMode(data) {
     editVersionList.appendChild(origRow);
   } else {
     editVersions.style.display = 'none';
+  }
+
+  // V2 features population
+  if (BUILD_VERSION === 'v2') {
+    // Source view — reset state, will render on toggle open
+    document.getElementById('sourceViewImage').style.display = 'none';
+    document.getElementById('sourceViewLoading').style.display = 'none';
+    document.getElementById('sourceViewEmpty').style.display = 'none';
+    // Close the section on slide change
+    document.getElementById('sourceViewBody').classList.remove('open');
+    document.getElementById('sourceViewArrow').classList.remove('open');
+    // Diff view — update if open
+    if (document.getElementById('diffViewBody').classList.contains('open')) updateDiffView();
+    // Notes — new format: {text, author, timestamp}
+    var noteInput = document.getElementById('noteTextarea');
+    var delNoteBtn = document.getElementById('deleteNoteBtn');
+    if (data.noteData && data.noteData.text) {
+      noteInput.value = data.noteData.text;
+      delNoteBtn.style.display = 'block';
+    } else {
+      noteInput.value = '';
+      delNoteBtn.style.display = 'none';
+    }
+    updateNotesBadge(data.noteCount || 0);
+    // Flag
+    updateFlagButton(data.isFlagged || false);
   }
 
   switchTab('edit');
@@ -1728,7 +1933,7 @@ window.onmessage = function (event) {
 
   // Auto-unlock from saved state
   if (msg.type === 'unlockStatus') {
-    if (msg.unlocked && !DROPBOX_TOKEN) {
+    if (msg.unlocked && !PLUGIN_UNLOCKED) {
       unlockPlugin();
     }
   }
@@ -1772,6 +1977,10 @@ window.onmessage = function (event) {
       }
       if (s.includePageNumbers) document.getElementById('pageNumbersCheck').checked = true;
       if (s.exportPrintView) document.getElementById('printViewCheck').checked = true;
+      if (s.buildVersion) {
+        document.getElementById('versionSelect').value = s.buildVersion;
+        applyVersionUI(s.buildVersion);
+      }
     }
     return;
   }
@@ -1864,6 +2073,69 @@ window.onmessage = function (event) {
     return;
   }
 
+  // V2 message handlers
+  if (msg.type === 'noteSaved') {
+    editStatus.textContent = 'Note saved';
+    editStatus.className = 'status success';
+    updateNotesBadge(msg.noteCount);
+    return;
+  }
+  if (msg.type === 'noteDeleted') {
+    editStatus.textContent = 'Note deleted';
+    editStatus.className = 'status success';
+    updateNotesBadge(msg.noteCount);
+    return;
+  }
+  if (msg.type === 'noteData') {
+    var noteInput = document.getElementById('noteTextarea');
+    var delBtn = document.getElementById('deleteNoteBtn');
+    if (msg.note && msg.note.text) {
+      noteInput.value = msg.note.text;
+      delBtn.style.display = 'block';
+    } else {
+      noteInput.value = '';
+      delBtn.style.display = 'none';
+    }
+    updateNotesBadge(msg.noteCount);
+    return;
+  }
+  if (msg.type === 'allNotesData') {
+    renderQANotes(msg.notes);
+    updateNotesBadge(msg.noteCount);
+    return;
+  }
+  // sourceSlideImage handler removed — now using PDF page browser
+  if (msg.type === 'reviewFlagToggled') {
+    updateFlagButton(msg.flagged);
+    editStatus.textContent = msg.flagged ? 'Slide flagged' : 'Flag removed';
+    editStatus.className = 'status success';
+    return;
+  }
+  if (msg.type === 'pageSlideList') {
+    // Run spell check with frame IDs for navigation
+    var allWarnings = [];
+    msg.slides.forEach(function (s) {
+      var w = checkText(s.title, s.body);
+      w.forEach(function (item) {
+        item.sessionNum = s.sessionNum;
+        item.slideNum = s.slideNum;
+        item.frameId = s.frameId;
+        item.msg = item.msg;
+        item.id = s.slideNum + '-' + item.id;
+      });
+      allWarnings = allWarnings.concat(w);
+    });
+    renderQASpellResults(allWarnings);
+    return;
+  }
+  if (msg.type === 'spellIgnoresSaved' || msg.type === 'spellIgnoresData') {
+    if (msg.type === 'spellIgnoresData') {
+      var key = 'S' + msg.sessionNum + '_' + msg.slideNum;
+      spellIgnores[key] = msg.ignores || [];
+    }
+    return;
+  }
+
   if (msg.type === 'pageCharts') {
     var chartDiv = document.getElementById('chartLocators');
     var chartList = document.getElementById('chartLocatorList');
@@ -1953,12 +2225,536 @@ function saveCurrentSettings() {
       fonts: fonts,
       course: document.getElementById('courseSelect').value,
       includePageNumbers: document.getElementById('pageNumbersCheck').checked,
-      exportPrintView: document.getElementById('printViewCheck').checked
+      exportPrintView: document.getElementById('printViewCheck').checked,
+      buildVersion: document.getElementById('versionSelect').value
     }
   }}, '*');
 }
 
 // Settings are loaded after unlock — see unlockPlugin()
+
+// Version selector
+function applyVersionUI(ver) {
+  BUILD_VERSION = ver;
+  var sel = document.getElementById('versionSelect');
+  sel.style.color = ver === 'v2' ? '#D4A853' : '#6bcb77';
+  // Toggle V2-only UI sections
+  var v2Els = document.querySelectorAll('[data-v2]');
+  for (var i = 0; i < v2Els.length; i++) {
+    v2Els[i].style.display = ver === 'v2' ? '' : 'none';
+  }
+}
+
+document.getElementById('versionSelect').addEventListener('change', function () {
+  applyVersionUI(this.value);
+  saveCurrentSettings();
+  setTimeout(resizeUI, 20);
+});
+
+// ============================================================
+// V2 FEATURES — JavaScript
+// ============================================================
+
+// --- Collapsible toggle helper ---
+function v2Toggle(toggleId, bodyId, arrowId, onOpen) {
+  document.getElementById(toggleId).addEventListener('click', function () {
+    var body = document.getElementById(bodyId);
+    body.classList.toggle('open');
+    document.getElementById(arrowId).classList.toggle('open');
+    if (onOpen && body.classList.contains('open')) onOpen();
+    setTimeout(resizeUI, 20);
+  });
+}
+
+// Source Document page browser state
+var srcPageState = { courseId: '', currentPage: 1, totalPages: 0 };
+
+async function loadSourcePage(pageNum) {
+  var courseId = srcPageState.courseId;
+  if (!PAGE_MAP || !PAGE_MAP[courseId]) return;
+  var pm = PAGE_MAP[courseId];
+  if (pageNum < 1 || pageNum > pm.pageCount) return;
+  srcPageState.currentPage = pageNum;
+  document.getElementById('srcPageLabel').textContent = 'Page ' + pageNum + ' / ' + pm.pageCount;
+  var cacheKey = courseId + '_' + pageNum;
+  var img = document.getElementById('sourceViewImage');
+  if (SRC_PAGE_CACHE[cacheKey]) {
+    img.src = SRC_PAGE_CACHE[cacheKey];
+    img.style.display = 'block';
+    document.getElementById('sourceViewLoading').style.display = 'none';
+    setTimeout(resizeUI, 50);
+    return;
+  }
+  document.getElementById('sourceViewLoading').style.display = 'block';
+  img.style.display = 'none';
+  try {
+    var pagePath = pm.pages[String(pageNum)];
+    var resp = await dropboxDownload(pagePath);
+    var blob = await resp.blob();
+    var reader = new FileReader();
+    reader.onload = function () {
+      SRC_PAGE_CACHE[cacheKey] = reader.result;
+      img.src = reader.result;
+      img.style.display = 'block';
+      document.getElementById('sourceViewLoading').style.display = 'none';
+      setTimeout(resizeUI, 50);
+    };
+    reader.readAsDataURL(blob);
+  } catch (e) {
+    document.getElementById('sourceViewLoading').style.display = 'none';
+    document.getElementById('sourceViewEmpty').style.display = 'block';
+    document.getElementById('sourceViewEmpty').textContent = 'Failed to load page: ' + e.message;
+  }
+}
+
+// Get the PDF page for a session using the accurate session-to-page mapping
+function getSourcePage(courseId, sessionNum) {
+  if (!PAGE_MAP || !PAGE_MAP[courseId] || !PAGE_MAP[courseId].sessionStart) return 1;
+  var startPage = PAGE_MAP[courseId].sessionStart[String(sessionNum)];
+  return startPage || 1;
+}
+
+// Determine course ID from footer course name
+function courseIdFromName(name) {
+  if (!name) return document.getElementById('courseSelect').value;
+  var n = name.toLowerCase();
+  if (n.indexOf('essential') !== -1 || n.indexOf('theology') !== -1) return 'et';
+  if (n.indexOf('scripture') !== -1 || n.indexOf('narrative') !== -1) return 'sn';
+  if (n.indexOf('biblical') !== -1 || n.indexOf('finance') !== -1) return 'bf';
+  return document.getElementById('courseSelect').value;
+}
+
+v2Toggle('sourceViewToggle', 'sourceViewBody', 'sourceViewArrow', async function () {
+  var courseId = courseIdFromName(editState.courseName);
+  // Try loading page map if not loaded yet
+  if (!PAGE_MAP) {
+    try {
+      document.getElementById('sourceViewLoading').style.display = 'block';
+      var pmResp = await dropboxDownload(DROPBOX_DATA_PATH + '/page_map.json');
+      PAGE_MAP = await pmResp.json();
+    } catch (e) { console.warn('Page map load failed:', e); }
+  }
+  if (!PAGE_MAP || !PAGE_MAP[courseId]) {
+    document.getElementById('sourceViewLoading').style.display = 'none';
+    document.getElementById('sourceViewEmpty').style.display = 'block';
+    document.getElementById('sourceViewEmpty').textContent = 'No pages for "' + courseId + '" — PAGE_MAP=' + (PAGE_MAP ? Object.keys(PAGE_MAP).join(',') : 'null');
+    return;
+  }
+  srcPageState.courseId = courseId;
+  srcPageState.totalPages = PAGE_MAP[courseId].pageCount;
+  var sessionStart = PAGE_MAP[courseId].sessionStart || {};
+  var startPage = sessionStart[String(editState.sessionNum)] || 1;
+  document.getElementById('srcPageLabel').textContent = 'S' + editState.sessionNum + ' → Page ' + startPage + ' / ' + srcPageState.totalPages;
+  loadSourcePage(startPage);
+});
+
+document.getElementById('srcPrevPage').addEventListener('click', function () {
+  if (srcPageState.currentPage > 1) loadSourcePage(srcPageState.currentPage - 1);
+});
+document.getElementById('srcNextPage').addEventListener('click', function () {
+  if (srcPageState.currentPage < srcPageState.totalPages) loadSourcePage(srcPageState.currentPage + 1);
+});
+v2Toggle('diffViewToggle', 'diffViewBody', 'diffViewArrow', function () { updateDiffView(); });
+// QA tab sub-panel toggles
+document.getElementById('qaTabNotes').addEventListener('click', function () {
+  document.getElementById('qaTabNotes').classList.add('active');
+  document.getElementById('qaTabSpell').classList.remove('active');
+  document.getElementById('qaNotesPanel').style.display = 'block';
+  document.getElementById('qaSpellPanel').style.display = 'none';
+  setTimeout(resizeUI, 20);
+});
+document.getElementById('qaTabSpell').addEventListener('click', function () {
+  document.getElementById('qaTabSpell').classList.add('active');
+  document.getElementById('qaTabNotes').classList.remove('active');
+  document.getElementById('qaSpellPanel').style.display = 'block';
+  document.getElementById('qaNotesPanel').style.display = 'none';
+  setTimeout(resizeUI, 20);
+});
+
+// --- Feature 2: Diff View ---
+function computeWordDiff(oldText, newText) {
+  var oldWords = (oldText || '').split(/(\s+)/);
+  var newWords = (newText || '').split(/(\s+)/);
+  var result = [];
+  var oi = 0, ni = 0;
+  while (oi < oldWords.length && ni < newWords.length) {
+    if (oldWords[oi] === newWords[ni]) {
+      result.push({ type: 'same', text: oldWords[oi] });
+      oi++; ni++;
+    } else {
+      var foundNew = newWords.indexOf(oldWords[oi], ni);
+      var foundOld = oldWords.indexOf(newWords[ni], oi);
+      if (foundNew !== -1 && (foundOld === -1 || foundNew - ni <= foundOld - oi)) {
+        while (ni < foundNew) { result.push({ type: 'add', text: newWords[ni] }); ni++; }
+      } else if (foundOld !== -1) {
+        while (oi < foundOld) { result.push({ type: 'remove', text: oldWords[oi] }); oi++; }
+      } else {
+        result.push({ type: 'remove', text: oldWords[oi] }); oi++;
+        result.push({ type: 'add', text: newWords[ni] }); ni++;
+      }
+    }
+  }
+  while (oi < oldWords.length) { result.push({ type: 'remove', text: oldWords[oi] }); oi++; }
+  while (ni < newWords.length) { result.push({ type: 'add', text: newWords[ni] }); ni++; }
+  return result;
+}
+
+function renderDiff(container, oldText, newText) {
+  var diffs = computeWordDiff(oldText, newText);
+  container.innerHTML = '';
+  if (oldText === newText) {
+    container.innerHTML = '<span style="color:#6bcb77;font-size:11px;">No changes</span>';
+    return;
+  }
+  diffs.forEach(function (d) {
+    if (d.type === 'same') {
+      container.appendChild(document.createTextNode(d.text));
+    } else {
+      var span = document.createElement('span');
+      span.className = d.type === 'add' ? 'diff-add' : 'diff-remove';
+      span.textContent = d.text;
+      container.appendChild(span);
+    }
+  });
+}
+
+function updateDiffView() {
+  var orig = findOriginalSlide(editState.sessionNum, editState.slideNum);
+  if (!orig) {
+    document.getElementById('diffTitleContent').innerHTML = '<span style="color:#888;font-size:11px;">(no source to compare)</span>';
+    document.getElementById('diffBodyContent').textContent = '';
+    return;
+  }
+  renderDiff(document.getElementById('diffTitleContent'), orig.title || '', editTitle.value || '');
+  renderDiff(document.getElementById('diffBodyContent'), orig.body || '', editBody.value || '');
+}
+
+// Auto-refresh diff on typing
+editTitle.addEventListener('input', function () {
+  if (BUILD_VERSION === 'v2' && document.getElementById('diffViewBody').classList.contains('open')) updateDiffView();
+});
+editBody.addEventListener('input', function () {
+  if (BUILD_VERSION === 'v2' && document.getElementById('diffViewBody').classList.contains('open')) updateDiffView();
+});
+
+// --- Feature 3: Slide Notes ---
+function updateNotesBadge(count) {
+  var badge = document.getElementById('notesBadge');
+  if (badge) {
+    if (count > 0) { badge.style.display = 'inline'; badge.textContent = count; }
+    else { badge.style.display = 'none'; }
+  }
+}
+
+document.getElementById('saveNoteBtn').addEventListener('click', function () {
+  if (!hasEditData) return;
+  var text = document.getElementById('noteTextarea').value;
+  if (!text.trim()) return;
+  parent.postMessage({ pluginMessage: {
+    type: 'saveNote',
+    sessionNum: editState.sessionNum,
+    slideNum: editState.slideNum,
+    text: text
+  }}, '*');
+  document.getElementById('deleteNoteBtn').style.display = 'block';
+});
+
+document.getElementById('deleteNoteBtn').addEventListener('click', function () {
+  if (!hasEditData) return;
+  parent.postMessage({ pluginMessage: {
+    type: 'deleteNote',
+    sessionNum: editState.sessionNum,
+    slideNum: editState.slideNum
+  }}, '*');
+  document.getElementById('noteTextarea').value = '';
+  document.getElementById('deleteNoteBtn').style.display = 'none';
+});
+
+// QA: Render all notes list
+function renderQANotes(notes) {
+  var list = document.getElementById('qaNotesList');
+  var empty = document.getElementById('qaNotesEmpty');
+  var loading = document.getElementById('qaNotesLoading');
+  var countEl = document.getElementById('qaNoteCount');
+  loading.style.display = 'none';
+  list.innerHTML = '';
+  if (!notes || notes.length === 0) {
+    empty.style.display = 'block';
+    countEl.textContent = '';
+    setTimeout(resizeUI, 20);
+    return;
+  }
+  empty.style.display = 'none';
+  countEl.textContent = notes.length + ' note' + (notes.length !== 1 ? 's' : '');
+  notes.forEach(function (item) {
+    var card = document.createElement('div');
+    card.style.cssText = 'background:#1e1e1e;border:1px solid #3a3a3a;border-left:3px solid #D4A853;border-radius:4px;padding:8px 10px;cursor:pointer;';
+    var header = document.createElement('div');
+    header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;';
+    var slideLabel = document.createElement('span');
+    slideLabel.style.cssText = 'font-size:11px;font-weight:600;color:#D4A853;';
+    slideLabel.textContent = 'S' + item.sessionNum + ' \u00B7 Slide ' + item.slideNum;
+    var meta = document.createElement('span');
+    meta.style.cssText = 'font-size:9px;color:#666;';
+    var ts = item.note.timestamp ? new Date(item.note.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
+    meta.textContent = (item.note.author || '') + (ts ? ' \u00B7 ' + ts : '');
+    header.appendChild(slideLabel);
+    header.appendChild(meta);
+    var body = document.createElement('div');
+    body.style.cssText = 'font-size:12px;color:#ccc;line-height:1.4;';
+    body.textContent = item.note.text;
+    var actions = document.createElement('div');
+    actions.style.cssText = 'display:flex;gap:6px;margin-top:6px;';
+    var goBtn = document.createElement('button');
+    goBtn.style.cssText = 'padding:2px 8px;font-size:9px;background:#2a2a3a;color:#7070c8;border:1px solid #3a3a4a;border-radius:3px;cursor:pointer;font-weight:600;';
+    goBtn.textContent = 'Go to Slide';
+    goBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      parent.postMessage({ pluginMessage: { type: 'zoomToFrame', frameId: item.frameId } }, '*');
+      // Small delay then switch to edit tab so user sees the slide
+      setTimeout(function () { switchTab('edit'); }, 200);
+    });
+    var editNoteBtn = document.createElement('button');
+    editNoteBtn.style.cssText = 'padding:2px 8px;font-size:9px;background:#2a2a2a;color:#D4A853;border:1px solid #3a3a3a;border-radius:3px;cursor:pointer;font-weight:600;';
+    editNoteBtn.textContent = 'Edit Note';
+    editNoteBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      // Navigate to slide and switch to edit tab where note input is
+      parent.postMessage({ pluginMessage: { type: 'zoomToFrame', frameId: item.frameId } }, '*');
+      setTimeout(function () { switchTab('edit'); }, 200);
+    });
+    var delBtn = document.createElement('button');
+    delBtn.style.cssText = 'padding:2px 8px;font-size:9px;background:#3a2a2a;color:#c87070;border:1px solid #4a3a3a;border-radius:3px;cursor:pointer;font-weight:600;';
+    delBtn.textContent = 'Delete Note';
+    delBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      parent.postMessage({ pluginMessage: { type: 'deleteNote', sessionNum: item.sessionNum, slideNum: item.slideNum } }, '*');
+      card.remove();
+      var remaining = list.children.length;
+      countEl.textContent = remaining > 0 ? remaining + ' note' + (remaining !== 1 ? 's' : '') : '';
+      if (remaining === 0) empty.style.display = 'block';
+      updateNotesBadge(remaining);
+      setTimeout(resizeUI, 20);
+    });
+    actions.appendChild(goBtn);
+    actions.appendChild(editNoteBtn);
+    actions.appendChild(delBtn);
+    card.appendChild(header);
+    card.appendChild(body);
+    card.appendChild(actions);
+    card.addEventListener('click', function () {
+      parent.postMessage({ pluginMessage: { type: 'zoomToFrame', frameId: item.frameId } }, '*');
+    });
+    list.appendChild(card);
+  });
+  setTimeout(resizeUI, 20);
+}
+
+// QA: Page-wide spell check
+document.getElementById('qaRunPageCheck').addEventListener('click', function () {
+  var courseId = document.getElementById('courseSelect').value;
+  var allSlides = getParsedSlides(courseId);
+  // Get current page session numbers
+  parent.postMessage({ pluginMessage: { type: 'getPageSlideList' } }, '*');
+});
+
+function renderQASpellResults(warnings) {
+  var list = document.getElementById('qaSpellList');
+  var countEl = document.getElementById('qaSpellCount');
+  var empty = document.getElementById('qaSpellEmpty');
+  list.innerHTML = '';
+  if (!warnings || warnings.length === 0) {
+    empty.style.display = 'block';
+    empty.textContent = 'No issues found on this page.';
+    countEl.textContent = '';
+    setTimeout(resizeUI, 20);
+    return;
+  }
+  empty.style.display = 'none';
+  countEl.textContent = warnings.length + ' issue' + (warnings.length !== 1 ? 's' : '');
+  warnings.forEach(function (w) {
+    var item = document.createElement('div');
+    item.className = 'spellcheck-item' + (w.type === 'warning' ? ' warning' : '');
+    var left = document.createElement('div');
+    left.style.cssText = 'flex:1;';
+    var slideRef = document.createElement('div');
+    slideRef.style.cssText = 'font-size:9px;color:#D4A853;font-weight:600;margin-bottom:2px;';
+    slideRef.textContent = 'S' + w.sessionNum + ' Slide ' + w.slideNum;
+    var msg = document.createElement('div');
+    msg.textContent = w.msg;
+    left.appendChild(slideRef);
+    left.appendChild(msg);
+    var actions = document.createElement('span');
+    actions.className = 'sc-actions';
+    if (w.frameId) {
+      var goBtn = document.createElement('button');
+      goBtn.className = 'sc-ignore';
+      goBtn.textContent = 'Go';
+      goBtn.addEventListener('click', function () {
+        parent.postMessage({ pluginMessage: { type: 'zoomToFrame', frameId: w.frameId } }, '*');
+      });
+      actions.appendChild(goBtn);
+    }
+    item.appendChild(left);
+    item.appendChild(actions);
+    list.appendChild(item);
+  });
+  setTimeout(resizeUI, 20);
+}
+
+// --- Feature 4: Spell Check ---
+var COMMON_MISSPELLINGS = {
+  'teh': 'the', 'recieve': 'receive', 'beleive': 'believe', 'occured': 'occurred',
+  'seperate': 'separate', 'definately': 'definitely', 'accomodate': 'accommodate',
+  'occurence': 'occurrence', 'neccessary': 'necessary', 'wierd': 'weird',
+  'truely': 'truly', 'untill': 'until', 'begining': 'beginning',
+  'judgement': 'judgment', 'fullfill': 'fulfill', 'alot': 'a lot'
+};
+
+function checkText(title, body, ignores) {
+  var warnings = [];
+  var fullText = (title || '') + '\n' + (body || '');
+  ignores = ignores || [];
+
+  // Double spaces
+  var dsMatches = fullText.match(/  +/g);
+  if (dsMatches) warnings.push({ id: 'dbl-space', type: 'error', msg: dsMatches.length + ' double space(s)', fix: 'dbl-space' });
+
+  // Mismatched quotes
+  var openD = (fullText.match(/[\u201C]/g) || []).length;
+  var closeD = (fullText.match(/[\u201D]/g) || []).length;
+  if (openD !== closeD) warnings.push({ id: 'quotes-double', type: 'error', msg: 'Mismatched curly double quotes (' + openD + ' open, ' + closeD + ' close)' });
+
+  var openP = (fullText.match(/\(/g) || []).length;
+  var closeP = (fullText.match(/\)/g) || []).length;
+  if (openP !== closeP) warnings.push({ id: 'parens', type: 'error', msg: 'Mismatched parentheses (' + openP + ' open, ' + closeP + ' close)' });
+
+  // Missing end punctuation
+  var trimmedBody = (body || '').trim();
+  if (trimmedBody && !/[.!?\u201D\u2019\u2014)\]]$/.test(trimmedBody)) {
+    warnings.push({ id: 'end-punct', type: 'warning', msg: 'Body text doesn\'t end with punctuation' });
+  }
+
+  // Orphaned words
+  var lines = (body || '').split('\n');
+  lines.forEach(function (line, idx) {
+    var tr = line.trim();
+    if (tr && tr.split(/\s+/).length === 1 && !/^[\u2022\u25CF\u2013\-\*\d]/.test(tr)) {
+      warnings.push({ id: 'orphan-' + idx, type: 'warning', msg: 'Line ' + (idx + 1) + ': orphaned word "' + tr + '"' });
+    }
+  });
+
+  // Misspellings
+  var words = fullText.toLowerCase().split(/[^a-z']+/);
+  var found = {};
+  words.forEach(function (w) {
+    if (COMMON_MISSPELLINGS[w] && !found[w]) {
+      found[w] = true;
+      warnings.push({ id: 'spell-' + w, type: 'error', msg: '"' + w + '" \u2192 "' + COMMON_MISSPELLINGS[w] + '"', fix: 'spell', fixFrom: w, fixTo: COMMON_MISSPELLINGS[w] });
+    }
+  });
+
+  // Filter out ignored
+  return warnings.filter(function (w) { return ignores.indexOf(w.id) === -1; });
+}
+
+var spellIgnores = {}; // per-slide ignores keyed by S{n}_{n}
+function getSpellIgnoreKey() { return 'S' + editState.sessionNum + '_' + editState.slideNum; }
+
+function applySpellFix(warning) {
+  if (warning.fix === 'dbl-space') {
+    editBody.value = editBody.value.replace(/  +/g, ' ');
+    editTitle.value = editTitle.value.replace(/  +/g, ' ');
+  } else if (warning.fix === 'spell') {
+    var re = new RegExp('\\b' + warning.fixFrom + '\\b', 'gi');
+    editBody.value = editBody.value.replace(re, warning.fixTo);
+    editTitle.value = editTitle.value.replace(re, warning.fixTo);
+  }
+}
+
+function ignoreSpellWarning(warningId) {
+  var key = getSpellIgnoreKey();
+  if (!spellIgnores[key]) spellIgnores[key] = [];
+  spellIgnores[key].push(warningId);
+  parent.postMessage({ pluginMessage: {
+    type: 'saveSpellIgnores',
+    sessionNum: editState.sessionNum,
+    slideNum: editState.slideNum,
+    ignores: spellIgnores[key]
+  }}, '*');
+}
+
+function runSpellCheck() {
+  var key = getSpellIgnoreKey();
+  var ignores = spellIgnores[key] || [];
+  var warnings = checkText(editTitle.value, editBody.value, ignores);
+  renderSpellResults(warnings);
+}
+
+function renderSpellResults(warnings) {
+  var list = document.getElementById('spellCheckList');
+  var countEl = document.getElementById('spellCheckCount');
+  var badge = document.getElementById('spellBadge');
+  list.innerHTML = '';
+  if (warnings.length === 0) {
+    list.innerHTML = '<div style="font-size:11px;color:#6bcb77;padding:4px;">No issues found</div>';
+    countEl.textContent = '';
+    badge.style.display = 'none';
+    setTimeout(resizeUI, 20);
+    return;
+  }
+  warnings.forEach(function (w) {
+    var item = document.createElement('div');
+    item.className = 'spellcheck-item' + (w.type === 'warning' ? ' warning' : '');
+    var txt = document.createElement('span');
+    txt.textContent = w.msg;
+    item.appendChild(txt);
+    var actions = document.createElement('span');
+    actions.className = 'sc-actions';
+    if (w.fix) {
+      var fixBtn = document.createElement('button');
+      fixBtn.className = 'sc-fix';
+      fixBtn.textContent = 'Fix';
+      fixBtn.addEventListener('click', function () {
+        applySpellFix(w);
+        runSpellCheck(); // re-run after fix
+      });
+      actions.appendChild(fixBtn);
+    }
+    var ignBtn = document.createElement('button');
+    ignBtn.className = 'sc-ignore';
+    ignBtn.textContent = 'Ignore';
+    ignBtn.addEventListener('click', function () {
+      ignoreSpellWarning(w.id);
+      runSpellCheck(); // re-run after ignore
+    });
+    actions.appendChild(ignBtn);
+    item.appendChild(actions);
+    list.appendChild(item);
+  });
+  countEl.textContent = warnings.length + ' issue' + (warnings.length !== 1 ? 's' : '');
+  badge.style.display = 'inline';
+  badge.textContent = warnings.length;
+  setTimeout(resizeUI, 20);
+}
+
+// --- Feature 5: Flag for Review (now combined with Notes) ---
+function updateFlagButton(isFlagged) {
+  var btn = document.getElementById('flagReviewBtn');
+  if (!btn) return;
+  btn.style.opacity = isFlagged ? '1' : '0.4';
+  btn.style.color = isFlagged ? '#c87070' : '#888';
+  btn.title = isFlagged ? 'Flagged for review (click to remove)' : 'Flag for review';
+}
+
+document.getElementById('flagReviewBtn').addEventListener('click', function () {
+  if (!hasEditData) return;
+  parent.postMessage({ pluginMessage: {
+    type: 'toggleReviewFlag',
+    sessionNum: editState.sessionNum,
+    slideNum: editState.slideNum
+  }}, '*');
+});
 
 function resizeUI() {
   var lock = document.getElementById('lockScreen');

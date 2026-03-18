@@ -10,7 +10,7 @@ figma.showUI(__html__, { width: 480, height: 320 });
   var sel = figma.currentPage.selection;
   if (sel.length === 1 && sel[0].type === 'FRAME' && sel[0].width === 1920 && sel[0].height === 1080) {
     var frame = sel[0];
-    var nameMatch = frame.name.match(/^\[(\w+)\]\s*S(\d+)\s*\u00B7\s*(\d+)\s*\u2014\s*(.*)/);
+    var nameMatch = frame.name.match(/^(?:\u2691\s*)?\[(\w+)\]\s*S(\d+)\s*\u00B7\s*(\d+)\s*\u2014\s*(.*)/);
     if (nameMatch) {
       // Extract text content from the frame's text nodes
       var texts = [];
@@ -31,8 +31,8 @@ figma.showUI(__html__, { width: 480, height: 320 });
       for (var i = 0; i < texts.length; i++) {
         var t = texts[i];
         if (t.y > 950) {
-          if (t.x < 960) courseName = t.chars;
-          else sessionLabel = t.chars;
+          if (t.x < 400) courseName = t.chars;
+          else if (t.x > 1200) sessionLabel = t.chars;
           continue;
         }
         if (t.fontSize <= 32 && t.y < 200 && !title && t.chars !== '') {
@@ -60,7 +60,11 @@ figma.showUI(__html__, { width: 480, height: 320 });
         overrideCount: getOverrideCount(),
         versions: getSlideVersions(sessionNum, slideNum),
         courseName: courseName,
-        sessionLabel: sessionLabel
+        sessionLabel: sessionLabel,
+        noteData: getSlideNote(sessionNum, slideNum),
+        noteCount: getNoteCount(),
+        isFlagged: isSlideReviewFlagged(sessionNum, slideNum),
+        flagCount: getReviewFlags().length
       });
     }
   }
@@ -80,7 +84,7 @@ function sendSelectionData() {
 
   if (sel.length === 1 && sel[0].type === 'FRAME' && sel[0].width === 1920 && sel[0].height === 1080) {
     var frame = sel[0];
-    var nameMatch = frame.name.match(/^\[(\w+)\]\s*S(\d+)\s*\u00B7\s*(\d+)\s*\u2014\s*(.*)/);
+    var nameMatch = frame.name.match(/^(?:\u2691\s*)?\[(\w+)\]\s*S(\d+)\s*\u00B7\s*(\d+)\s*\u2014\s*(.*)/);
     if (nameMatch) {
       var texts = [];
       frame.findAll(function (n) { return n.type === 'TEXT'; }).forEach(function (t) {
@@ -96,8 +100,8 @@ function sendSelectionData() {
       for (var i = 0; i < texts.length; i++) {
         var t = texts[i];
         if (t.y > 950) {
-          if (t.x < 960) courseName = t.chars;
-          else sessionLabel = t.chars;
+          if (t.x < 400) courseName = t.chars;
+          else if (t.x > 1200) sessionLabel = t.chars;
           continue;
         }
         if (t.fontSize <= 32 && t.y < 200 && !title && t.chars !== '') title = t.chars;
@@ -119,7 +123,11 @@ function sendSelectionData() {
         overrideCount: getOverrideCount(),
         versions: getSlideVersions(sessionNum, slideNum),
         courseName: courseName,
-        sessionLabel: sessionLabel
+        sessionLabel: sessionLabel,
+        noteData: getSlideNote(sessionNum, slideNum),
+        noteCount: getNoteCount(),
+        isFlagged: isSlideReviewFlagged(sessionNum, slideNum),
+        flagCount: getReviewFlags().length
       });
       return;
     }
@@ -159,6 +167,14 @@ function sendPageCharts() {
 // Send chart data on page change too
 figma.on('currentpagechange', function () {
   sendPageCharts();
+});
+
+// Clean up preview frame when plugin closes
+figma.on('close', function () {
+  var prev = figma.currentPage.findOne(function (n) {
+    return n.type === 'FRAME' && n.name === '[PREVIEW]';
+  });
+  if (prev) prev.remove();
 });
 
 figma.ui.onmessage = async function (msg) {
@@ -218,15 +234,24 @@ figma.ui.onmessage = async function (msg) {
 
       // Save the override so future builds use this version
       saveSlideOverride(msg.sessionNum, msg.slideNum, {
+        mode: 'text',
         type: msg.slideType,
         title: msg.title,
         body: msg.body
       });
 
       // Find the original frame and replace it
-      var oldFrame = figma.getNodeById(msg.frameId);
-      var x = msg.frameX;
-      var y = msg.frameY;
+      var oldFrame = null;
+      try { oldFrame = figma.getNodeById(msg.frameId); } catch (e) {}
+      // Fallback: find by slide name pattern if ID lookup fails
+      if (!oldFrame) {
+        var namePrefix = 'S' + msg.sessionNum + ' \u00B7 ' + msg.slideNum + ' \u2014';
+        oldFrame = figma.currentPage.findOne(function (n) {
+          return n.type === 'FRAME' && n.name.indexOf(namePrefix) !== -1 && n.name !== '[PREVIEW]';
+        });
+      }
+      var x = oldFrame ? oldFrame.x : msg.frameX;
+      var y = oldFrame ? oldFrame.y : msg.frameY;
       var parentNode = oldFrame ? oldFrame.parent : figma.currentPage;
       if (oldFrame) oldFrame.remove();
 
@@ -562,6 +587,87 @@ figma.ui.onmessage = async function (msg) {
   if (msg.type === 'scanPage') {
     sendPageCharts();
   }
+  // V2: Notes
+  if (msg.type === 'saveNote') {
+    saveSlideNote(msg.sessionNum, msg.slideNum, msg.text);
+    figma.ui.postMessage({ type: 'noteSaved', noteCount: getNoteCount() });
+  }
+  if (msg.type === 'deleteNote') {
+    saveSlideNote(msg.sessionNum, msg.slideNum, '');
+    figma.ui.postMessage({ type: 'noteDeleted', noteCount: getNoteCount() });
+  }
+  if (msg.type === 'getNote') {
+    var noteData = getSlideNote(msg.sessionNum, msg.slideNum);
+    figma.ui.postMessage({ type: 'noteData', sessionNum: msg.sessionNum, slideNum: msg.slideNum, note: noteData, noteCount: getNoteCount() });
+  }
+  if (msg.type === 'getAllNotes') {
+    var allNotes = getAllPageNotes();
+    figma.ui.postMessage({ type: 'allNotesData', notes: allNotes, noteCount: allNotes.length });
+  }
+  // V2: Review Flags
+  if (msg.type === 'toggleReviewFlag') {
+    var result = toggleReviewFlag(msg.sessionNum, msg.slideNum);
+    figma.ui.postMessage({ type: 'reviewFlagToggled', sessionNum: msg.sessionNum, slideNum: msg.slideNum, flagged: result.flagged, totalFlags: result.totalFlags });
+  }
+  if (msg.type === 'getFlaggedSlides') {
+    var flagged = getFlaggedSlides();
+    figma.ui.postMessage({ type: 'flaggedSlidesList', slides: flagged, totalFlags: flagged.length });
+  }
+  // V2: Spell Check Ignores
+  if (msg.type === 'saveSpellIgnores') {
+    saveSpellIgnores(msg.sessionNum, msg.slideNum, msg.ignores);
+    figma.ui.postMessage({ type: 'spellIgnoresSaved' });
+  }
+  if (msg.type === 'getSpellIgnores') {
+    figma.ui.postMessage({ type: 'spellIgnoresData', sessionNum: msg.sessionNum, slideNum: msg.slideNum, ignores: getSpellIgnores(msg.sessionNum, msg.slideNum) });
+  }
+  // V2: Render source slide as image for Source View
+  if (msg.type === 'renderSourceSlide') {
+    try {
+      await loadAllFonts();
+      var srcSlide = {
+        type: msg.slideType || 'body',
+        title: msg.title || '',
+        body: msg.body || '',
+        sessionNum: msg.sessionNum,
+        number: msg.slideNum,
+        _courseName: msg.courseName || '',
+        _sessionLabel: msg.sessionLabel || ''
+      };
+      // Build temp frame off-screen
+      var tempFrame = buildFrame(srcSlide, -5000, -5000);
+      figma.currentPage.appendChild(tempFrame);
+      // Export as PNG at 0.5x for thumbnail
+      var bytes = await tempFrame.exportAsync({ format: 'PNG', constraint: { type: 'SCALE', value: 0.4 } });
+      tempFrame.remove();
+      // Convert to base64
+      var base64 = figma.base64Encode(bytes);
+      figma.ui.postMessage({ type: 'sourceSlideImage', image: base64, sessionNum: msg.sessionNum, slideNum: msg.slideNum });
+    } catch (err) {
+      figma.ui.postMessage({ type: 'sourceSlideImage', image: null, error: String(err) });
+    }
+  }
+  if (msg.type === 'getPageSlideList') {
+    var slides = [];
+    figma.currentPage.children.forEach(function (node) {
+      if (node.type !== 'FRAME' || node.width !== 1920 || node.height !== 1080 || node.name === '[PREVIEW]') return;
+      var nameMatch = node.name.match(/\[(\w+)\]\s*S(\d+)\s*\u00B7\s*(\d+)\s*\u2014\s*(.*)/);
+      if (!nameMatch) return;
+      var texts = [];
+      node.findAll(function (n) { return n.type === 'TEXT'; }).forEach(function (t) {
+        texts.push({ chars: t.characters, fontSize: t.fontSize, y: t.y });
+      });
+      texts.sort(function (a, b) { return a.y - b.y; });
+      var title = '', body = '';
+      for (var i = 0; i < texts.length; i++) {
+        if (texts[i].y > 950) continue;
+        if (texts[i].fontSize <= 32 && texts[i].y < 200 && !title) title = texts[i].chars;
+        else if (texts[i].fontSize >= 32 && !body) body = texts[i].chars;
+      }
+      slides.push({ sessionNum: parseInt(nameMatch[2]), slideNum: parseInt(nameMatch[3]), title: title, body: body, frameId: node.id });
+    });
+    figma.ui.postMessage({ type: 'pageSlideList', slides: slides });
+  }
   if (msg.type === 'saveSettings') {
     figma.clientStorage.setAsync('pluginSettings', msg.settings);
   }
@@ -848,6 +954,148 @@ function getAllOverrides() {
     }
   }
   return result;
+}
+
+// ============================================================
+// V2: SLIDE NOTES
+// ============================================================
+
+function noteKey(sNum, slNum) { return 'slideNote_S' + sNum + '_' + slNum; }
+
+function saveSlideNote(sNum, slNum, text) {
+  var key = noteKey(sNum, slNum);
+  if (!text || !text.trim()) {
+    figma.root.setPluginData(key, '');
+    var index = JSON.parse(figma.root.getPluginData('noteIndex') || '[]');
+    index = index.filter(function (k) { return k !== key; });
+    figma.root.setPluginData('noteIndex', JSON.stringify(index));
+    return;
+  }
+  var userName = 'Unknown';
+  try { userName = figma.currentUser ? figma.currentUser.name : 'Unknown'; } catch (e) {}
+  var noteData = JSON.stringify({
+    text: text,
+    author: userName,
+    timestamp: new Date().toISOString()
+  });
+  figma.root.setPluginData(key, noteData);
+  var index = JSON.parse(figma.root.getPluginData('noteIndex') || '[]');
+  if (index.indexOf(key) === -1) index.push(key);
+  figma.root.setPluginData('noteIndex', JSON.stringify(index));
+}
+
+function getSlideNote(sNum, slNum) {
+  var raw = figma.root.getPluginData(noteKey(sNum, slNum)) || '';
+  if (!raw) return null;
+  try {
+    var parsed = JSON.parse(raw);
+    if (parsed.text) return parsed; // new format {text, author, timestamp}
+    return null;
+  } catch (e) {
+    // Legacy plain text note
+    return raw.trim() ? { text: raw, author: 'Unknown', timestamp: '' } : null;
+  }
+}
+
+function getNoteCount() {
+  var index = JSON.parse(figma.root.getPluginData('noteIndex') || '[]');
+  return index.filter(function (k) {
+    var raw = figma.root.getPluginData(k) || '';
+    if (!raw.trim()) return false;
+    try { var p = JSON.parse(raw); return p.text && p.text.trim(); } catch (e) { return raw.trim() !== ''; }
+  }).length;
+}
+
+function getAllPageNotes() {
+  // Find all slides on current page and return their notes
+  var results = [];
+  var index = JSON.parse(figma.root.getPluginData('noteIndex') || '[]');
+  index.forEach(function (key) {
+    var match = key.match(/slideNote_S(\d+)_(\d+)$/);
+    if (!match) return;
+    var sNum = parseInt(match[1]);
+    var slNum = parseInt(match[2]);
+    var note = getSlideNote(sNum, slNum);
+    if (!note) return;
+    // Find frame on current page
+    var nameSnippet = 'S' + sNum + ' \u00B7 ' + slNum + ' \u2014';
+    var frameId = null, frameName = '';
+    figma.currentPage.children.forEach(function (node) {
+      if (node.type === 'FRAME' && node.name.indexOf(nameSnippet) !== -1 && node.name !== '[PREVIEW]') {
+        frameId = node.id;
+        frameName = node.name;
+      }
+    });
+    if (frameId) {
+      results.push({ sessionNum: sNum, slideNum: slNum, frameId: frameId, frameName: frameName, note: note });
+    }
+  });
+  return results;
+}
+
+// ============================================================
+// V2: REVIEW FLAGS
+// ============================================================
+
+function getReviewFlags() {
+  try { return JSON.parse(figma.root.getPluginData('reviewFlags') || '[]'); } catch (e) { return []; }
+}
+
+function isSlideReviewFlagged(sNum, slNum) {
+  return getReviewFlags().some(function (f) { return f.sessionNum === sNum && f.slideNum === slNum; });
+}
+
+function toggleReviewFlag(sNum, slNum) {
+  var flags = getReviewFlags();
+  var idx = -1;
+  for (var i = 0; i < flags.length; i++) {
+    if (flags[i].sessionNum === sNum && flags[i].slideNum === slNum) { idx = i; break; }
+  }
+  var nowFlagged;
+  if (idx !== -1) { flags.splice(idx, 1); nowFlagged = false; }
+  else { flags.push({ sessionNum: sNum, slideNum: slNum }); nowFlagged = true; }
+  figma.root.setPluginData('reviewFlags', JSON.stringify(flags));
+
+  // Update frame name on canvas
+  var nameSnippet = 'S' + sNum + ' \u00B7 ' + slNum + ' \u2014';
+  figma.currentPage.children.forEach(function (node) {
+    if (node.type === 'FRAME' && node.name.indexOf(nameSnippet) !== -1 && node.name !== '[PREVIEW]') {
+      if (nowFlagged && node.name.indexOf('\u2691') === -1) {
+        node.name = '\u2691 ' + node.name;
+      } else if (!nowFlagged) {
+        node.name = node.name.replace(/^\u2691\s*/, '');
+      }
+    }
+  });
+  return { flagged: nowFlagged, totalFlags: flags.length };
+}
+
+function getFlaggedSlides() {
+  var flags = getReviewFlags();
+  var results = [];
+  flags.forEach(function (f) {
+    var nameSnippet = 'S' + f.sessionNum + ' \u00B7 ' + f.slideNum + ' \u2014';
+    figma.currentPage.children.forEach(function (node) {
+      if (node.type === 'FRAME' && node.name.indexOf(nameSnippet) !== -1 && node.name !== '[PREVIEW]') {
+        results.push({ sessionNum: f.sessionNum, slideNum: f.slideNum, frameId: node.id, name: node.name });
+      }
+    });
+  });
+  return results;
+}
+
+// ============================================================
+// V2: SPELL CHECK IGNORES
+// ============================================================
+
+function spellIgnoreKey(sNum, slNum) { return 'spellIgnores_S' + sNum + '_' + slNum; }
+
+function saveSpellIgnores(sNum, slNum, ignores) {
+  figma.root.setPluginData(spellIgnoreKey(sNum, slNum), JSON.stringify(ignores || []));
+}
+
+function getSpellIgnores(sNum, slNum) {
+  try { return JSON.parse(figma.root.getPluginData(spellIgnoreKey(sNum, slNum)) || '[]'); } catch (e) { return []; }
 }
 
 // ============================================================
@@ -1628,10 +1876,49 @@ function buildQuoteSlide(frame, slide) {
 }
 
 function buildScriptureSlide(frame, slide) {
-  var body = slide._rawEdit ? slide.body : polishText(cleanQuote(slide.body));
+  var bodyText = slide._rawEdit ? slide.body : polishText(cleanQuote(slide.body));
+  var ref = '';
+
+  // If title is already a scripture reference, use it
+  if (slide.title && isScriptureTitle(slide.title)) {
+    ref = slide._rawEdit ? slide.title : polishText(slide.title);
+  } else {
+    // Try to extract a scripture reference from the first line of the body
+    var lines = bodyText.split('\n');
+    for (var li = 0; li < lines.length; li++) {
+      var ln = lines[li].trim();
+      if (ln && isScriptureTitle(ln)) {
+        ref = ln;
+        lines.splice(li, 1);
+        bodyText = lines.join('\n').trim();
+        break;
+      }
+    }
+    // If still no ref, fall back to title as-is
+    if (!ref && slide.title) {
+      ref = slide._rawEdit ? slide.title : polishText(slide.title);
+    }
+  }
+
+  // Show title at top if it's not a scripture reference (i.e. it's a real title)
+  var showTitle = slide.title && !isScriptureTitle(slide.title);
+  if (showTitle) {
+    addText(frame, slide._rawEdit ? slide.title : polishText(slide.title), {
+      x: SIDE_MARGIN,
+      y: LABEL_Y,
+      w: CONTENT_W,
+      h: 40,
+      size: TITLE_SIZE,
+      color: COLORS.textPrimary,
+      align: 'CENTER',
+      font: 'sans'
+    });
+  }
+
+  var body = bodyText;
   var sz = bodySize(body);
   var refSize = sz - REF_OFFSET;
-  var ref = slide.title ? (slide._rawEdit ? slide.title : polishText(slide.title)) : '';
+  var areaTop = showTitle ? CONTENT_TOP : CONTENT_TOP;
 
   var bodyNode = addText(frame, body, {
     x: SIDE_MARGIN,
