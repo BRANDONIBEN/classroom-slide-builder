@@ -1,0 +1,10 @@
+{
+  "name": "classroom-slide-builder",
+  "private": true,
+  "scripts": {
+    "sync": "node scripts/sync-dropbox.js"
+  },
+  "dependencies": {
+    "pdf-parse": "^1.1.1"
+  }
+}
