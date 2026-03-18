@@ -355,10 +355,10 @@
     <!-- Course Header -->
     <div class="course-header">
       <div class="row">
-        <div class="field"><label>Course Name</label><input type="text" id="courseName" placeholder="e.g. Essential Theology" oninput="onCourseChange()"></div>
+        <div class="field"><label>Course Name</label><input type="text" id="courseName" placeholder="e.g. Essential Theology" oninput="onCourseChange(false)" onblur="onCourseChange(true)"></div>
       </div>
       <div class="row">
-        <div class="field"><label>Teacher / Instructor</label><input type="text" id="courseTeacher" placeholder="e.g. Jake Daghe" oninput="onCourseChange()"></div>
+        <div class="field"><label>Teacher / Instructor</label><input type="text" id="courseTeacher" placeholder="e.g. Jake Daghe" oninput="onCourseChange(false)" onblur="onCourseChange(true)"></div>
       </div>
     </div>
     <input type="hidden" id="courseId">
@@ -1355,20 +1355,24 @@ function generateCourseId(name) {
   return words.map(function(w) { return w.charAt(0); }).join('').toLowerCase();
 }
 
-function onCourseChange() {
+function onCourseChange(commitSave) {
+  var oldId = course.id;
   course.name = document.getElementById('courseName').value;
-  course.id = generateCourseId(course.name);
-  document.getElementById('courseId').value = course.id;
+  // Only regenerate ID if there isn't one yet (new course)
+  // Renaming an existing course keeps the same ID
+  if (!oldId) {
+    course.id = generateCourseId(course.name);
+    document.getElementById('courseId').value = course.id;
+  }
   course.teacher = document.getElementById('courseTeacher').value;
-  // Update FILE_NAMES map and save immediately so Courses panel updates
-  if (course.id && course.name) {
+  refreshLive();
+  // Only persist to localStorage on blur — not every keystroke
+  if (commitSave && course.id && course.name) {
     FILE_NAMES[course.id + '_text.json'] = course.name;
     saveCurrentCourseToLocal();
-    loadWatchFolder(); // Refresh courses list
+    loadWatchFolder(true);
+    scheduleAutosave();
   }
-  refreshLive();
-  renderEditor();
-  scheduleAutosave();
 }
 
 // ============================================================
