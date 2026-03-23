@@ -380,7 +380,7 @@ figma.ui.onmessage = async function (msg) {
       previewFrame.opacity = 1;
 
       // Commit the preview as design override
-      commitDesignOverride(sNum, slNum, previewFrame);
+      await commitDesignOverride(sNum, slNum, previewFrame);
 
       // Move preview to original's position and remove original
       if (origFrame) {
@@ -596,7 +596,7 @@ figma.ui.onmessage = async function (msg) {
       var deletedX = frame.x;
       var SPACING = W + 80;
       // Move to trash page (recoverable) before removing from canvas
-      moveToTrash(frame);
+      await moveToTrash(frame);
       frame.remove();
       // Remove preview too
       var prev = parentNode.findOne ? parentNode.findOne(function (n) { return n.name === '[PREVIEW]'; }) : null;
@@ -611,7 +611,7 @@ figma.ui.onmessage = async function (msg) {
       if (msg.sessionNum && msg.slideNum) clearSlideOverride(msg.sessionNum, msg.slideNum);
       // Renumber page numbers after delete
       await renumberPageNumbers(parentNode);
-      figma.ui.postMessage({ type: 'slideDeleted', trash: getTrashList() });
+      figma.ui.postMessage({ type: 'slideDeleted', trash: await getTrashList() });
     } catch (err) {
       figma.ui.postMessage({ type: 'error', message: String(err) });
     }
@@ -783,7 +783,7 @@ figma.ui.onmessage = async function (msg) {
     figma.ui.resize(480, Math.min(Math.max(msg.height, 480), 1200));
   }
   if (msg.type === 'getTrash') {
-    figma.ui.postMessage({ type: 'trashList', items: getTrashList() });
+    figma.ui.postMessage({ type: 'trashList', items: await getTrashList() });
   }
   if (msg.type === 'recoverSlide') {
     try {
@@ -805,7 +805,7 @@ figma.ui.onmessage = async function (msg) {
       trashFrame.remove();
       figma.currentPage.selection = [clone];
       figma.viewport.scrollAndZoomIntoView([clone]);
-      figma.ui.postMessage({ type: 'slideRecovered', trash: getTrashList() });
+      figma.ui.postMessage({ type: 'slideRecovered', trash: await getTrashList() });
     } catch (err) {
       figma.ui.postMessage({ type: 'error', message: String(err) });
     }
@@ -891,9 +891,12 @@ function overrideKey(sessionNum, slideNum) {
   return OVERRIDE_PREFIX + 'S' + sessionNum + '_' + slideNum;
 }
 
-function getStoragePage() {
+async function getStoragePage() {
   for (var i = 0; i < figma.root.children.length; i++) {
-    if (figma.root.children[i].name === STORAGE_PAGE_NAME) return figma.root.children[i];
+    if (figma.root.children[i].name === STORAGE_PAGE_NAME) {
+      await figma.root.children[i].loadAsync();
+      return figma.root.children[i];
+    }
   }
   var page = figma.createPage();
   page.name = STORAGE_PAGE_NAME;
@@ -933,8 +936,8 @@ function getSlideVersions(sessionNum, slideNum) {
   try { return JSON.parse(figma.root.getPluginData(key) || '[]'); } catch (e) { return []; }
 }
 
-function commitDesignOverride(sessionNum, slideNum, frame) {
-  var storagePage = getStoragePage();
+async function commitDesignOverride(sessionNum, slideNum, frame) {
+  var storagePage = await getStoragePage();
   var clone = frame.clone();
   clone.name = '[COMMITTED] S' + sessionNum + ' \u00B7 ' + slideNum;
   storagePage.appendChild(clone);
@@ -1210,18 +1213,21 @@ function getSpellIgnores(sNum, slNum) {
 // TRASH (recoverable deleted slides)
 // ============================================================
 
-function getTrashPage() {
+async function getTrashPage() {
   var pages = figma.root.children;
   for (var i = 0; i < pages.length; i++) {
-    if (pages[i].name === '[TRASH]') return pages[i];
+    if (pages[i].name === '[TRASH]') {
+      await pages[i].loadAsync();
+      return pages[i];
+    }
   }
   var page = figma.createPage();
   page.name = '[TRASH]';
   return page;
 }
 
-function moveToTrash(frame) {
-  var trashPage = getTrashPage();
+async function moveToTrash(frame) {
+  var trashPage = await getTrashPage();
   var clone = frame.clone();
   // Store original location metadata
   clone.setPluginData('_trash_pageId', frame.parent.id || '');
@@ -1243,13 +1249,14 @@ function moveToTrash(frame) {
   return clone;
 }
 
-function getTrashList() {
+async function getTrashList() {
   var pages = figma.root.children;
   var trashPage = null;
   for (var i = 0; i < pages.length; i++) {
     if (pages[i].name === '[TRASH]') { trashPage = pages[i]; break; }
   }
   if (!trashPage) return [];
+  await trashPage.loadAsync();
   var items = [];
   trashPage.children.forEach(function (c) {
     if (c.type === 'FRAME') {
