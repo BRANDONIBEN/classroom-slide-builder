@@ -334,13 +334,23 @@
 <body>
 
 <!-- Lock screen -->
-<div id="lockScreen" style="display:flex;flex-direction:column;align-items:center;gap:12px;padding:24px 20px;">
-  <div style="font-size:13px;font-weight:600;color:#fff;">Enter team password</div>
-  <div style="display:flex;gap:8px;width:100%;max-width:280px;">
-    <input type="password" id="lockPassword" placeholder="Password" style="flex:1;padding:8px 12px;background:#2a2a2a;border:1px solid #3a3a3a;border-radius:6px;color:#e0e0e0;font-size:13px;outline:none;" />
-    <button id="lockUnlockBtn" style="padding:8px 16px;background:#D4A853;color:#1e1e1e;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;">Unlock</button>
+<div id="lockScreen" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:400px;padding:40px 20px;gap:24px;">
+  <div style="width:64px;height:64px;border-radius:16px;display:flex;align-items:center;justify-content:center;background:#2a2a2a;border:1px solid #333;">
+    <svg width="36" height="36" viewBox="0 0 55 54" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M27.0541 32.8376C23.5515 32.8376 20.0567 33.7423 16.9253 35.567L5.25773 42.3325L8.56701 47.3969L21.9433 37.6624L24.317 34.5773H24.6959L24.2242 53.2113H29.8995L29.4278 34.5773H29.8067L32.1804 37.6624L45.5567 47.3969L48.866 42.3325L37.1985 35.567C34.0593 33.7577 30.5644 32.8376 27.0619 32.8376H27.0541Z" fill="#D4A853"/>
+      <path d="M39.0155 25.7474L35.1727 25.2294L34.9794 24.8969L51.2938 15.982L48.4562 11.049L32.6134 20.7835L32.4201 20.451L33.8969 16.8479L35.5979 0.347938L29.5902 0V13.5309C29.5902 17.1649 30.5567 20.6598 32.3119 23.7062C34.0593 26.7526 36.6031 29.3351 39.7268 31.1521L51.3943 37.9175L54.1005 32.5129L39.0155 25.7474Z" fill="#D4A853"/>
+      <path d="M21.8041 23.7062C23.5515 20.6598 24.5258 17.1649 24.5258 13.5309V7.15256e-07L18.5103 0.347939L20.2113 16.8479L21.6804 20.451L21.4871 20.7835L5.65206 11.049L2.81443 15.982L19.1289 24.8969L18.9356 25.2294L15.0851 25.7474L0 32.5129L2.70619 37.9175L14.3737 31.1521C17.5129 29.3428 20.049 26.7526 21.7887 23.7062H21.8119H21.8041Z" fill="#D4A853"/>
+    </svg>
   </div>
-  <div id="lockError" style="font-size:11px;color:#c87070;display:none;">Incorrect password</div>
+  <div style="text-align:center;">
+    <div style="font-size:16px;font-weight:600;color:#fff;margin-bottom:4px;">Classroom Slide Builder</div>
+    <div style="font-size:11px;color:#666;">Enter your team password to continue</div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:8px;width:100%;max-width:240px;">
+    <input type="password" id="lockPassword" placeholder="Password" style="width:100%;padding:10px 14px;background:#2a2a2a;border:1px solid #3a3a3a;border-radius:8px;color:#e0e0e0;font-size:13px;outline:none;text-align:center;box-sizing:border-box;" />
+    <button id="lockUnlockBtn" style="width:100%;padding:10px 16px;background:#D4A853;color:#1e1e1e;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">Unlock</button>
+    <div id="lockError" style="font-size:11px;color:#c87070;display:none;text-align:center;">Incorrect password</div>
+  </div>
 </div>
 
 <div id="uiWrapper" style="display:none;flex-direction:column;gap:10px;">
@@ -1649,7 +1659,8 @@ function unlockPlugin() {
 }
 
 document.getElementById('lockUnlockBtn').addEventListener('click', function () {
-  var pw = document.getElementById('lockPassword').value.trim();
+  var pw = document.getElementById('lockPassword').value.trim().toLowerCase();
+  console.log('[Unlock] entered:', JSON.stringify(pw), 'expected:', JSON.stringify(PLUGIN_PASSWORD), 'match:', pw === PLUGIN_PASSWORD);
   if (pw === PLUGIN_PASSWORD) {
     // Save unlock flag separately
     parent.postMessage({ pluginMessage: { type: 'saveUnlock' } }, '*');
