@@ -1549,7 +1549,7 @@ function polishText(text) {
     var trimmed = line.trim();
     var prevLine = merged[merged.length - 1].trim();
     var prevEndsTerminal = /[.;!?)\u201D"']$/.test(prevLine);
-    var isList = /^(\d+\.|[●•\-\*]\s)/.test(trimmed);
+    var isList = /^(\d+\.|[●•○◦\-\*]\s)/.test(trimmed);
     var startsQuote = /^[\u201C\u2018"]/.test(trimmed);
 
     if (isList || startsQuote || (prevEndsTerminal && /^[A-Z\d]/.test(trimmed))) {
@@ -1564,6 +1564,8 @@ function polishText(text) {
   s = s.replace(/\u0000PARA\u0000/g, '\n\n');
 
   // Clean up bullet characters — remove heavy bullets, keep text only
+  // Mark sub-items (○) with indent before stripping
+  s = s.replace(/[○◦]\s*/g, '  SUB_ITEM ');
   s = s.replace(/[●•]\s*/g, '');
 
   // Fix arrows: -> to ›, => to ›, --> to ›
@@ -2171,31 +2173,42 @@ function buildListSlide(frame, slide) {
     });
   }
 
-  // Parse list items: ● • - * = top level, ○ or indented = sub-item
+  // Parse list items
   var rawLines = body.split('\n');
   var items = [];
   for (var li = 0; li < rawLines.length; li++) {
     var line = rawLines[li].trim();
     if (!line) continue;
-    var isSub = /^[○◦]/.test(line) || /^\s{2,}[●•\-\*○◦]/.test(rawLines[li]);
-    // Strip bullet characters
-    var clean = line.replace(/^[●•○◦\-\*]\s*/, '').replace(/^\d+\.\s*/, '').trim();
+    // Detect sub-items: SUB_ITEM marker from polishText, or ○, or leading whitespace
+    var isSub = /^SUB_ITEM\s/.test(line) || /^[○◦]/.test(line) || /^\s{2,}[●•\-\*○◦]/.test(rawLines[li]);
+    // Strip all bullet/marker characters
+    var clean = line.replace(/^SUB_ITEM\s*/, '').replace(/^[●•○◦\-\*]\s*/, '').replace(/^\d+\.\s*/, '').trim();
     if (!clean) continue;
     if (!slide._rawEdit) clean = ensurePeriod(clean);
     items.push({ text: clean, sub: isSub });
   }
 
-  // Build formatted list text with clean dash bullets
-  var INDENT = '      ';  // 6 spaces for sub-items
-  var BULLET = '\u2014  '; // em dash + 2 spaces
-  var SUB_BULLET = '\u2013  '; // en dash + 2 spaces
-  var formatted = items.map(function (item) {
-    return item.sub ? (INDENT + SUB_BULLET + item.text) : (BULLET + item.text);
+  // Check if original had numbered items (1. 2. 3.)
+  var hasNumbered = /^\d+\./.test(body.trim());
+
+  // Build formatted list text
+  var formatted = items.map(function (item, idx) {
+    if (hasNumbered && !item.sub) {
+      // Numbered list: keep numbering
+      var num = 0;
+      for (var ni = 0; ni <= idx; ni++) { if (!items[ni].sub) num++; }
+      return num + '.  ' + item.text;
+    }
+    if (item.sub) {
+      return '       \u2013  ' + item.text;  // indented en dash for sub-items
+    }
+    return '\u2014  ' + item.text;  // em dash for top-level
   }).join('\n');
 
-  // Scale font size based on item count
+  // Scale font size based on total text length and item count
   var itemCount = items.length;
-  var sz = itemCount <= 4 ? 28 : itemCount <= 6 ? 24 : itemCount <= 8 ? 22 : 20;
+  var totalChars = formatted.length;
+  var sz = itemCount <= 3 ? 28 : itemCount <= 5 ? 26 : itemCount <= 7 ? 24 : totalChars > 500 ? 20 : 22;
 
   var listNode = addText(frame, formatted, {
     x: SIDE_MARGIN + 40,
