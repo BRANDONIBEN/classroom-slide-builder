@@ -635,6 +635,16 @@ figma.ui.onmessage = async function (msg) {
       });
       if (oldPreview) oldPreview.remove();
 
+      // Find original frame to extract page number
+      var origPageNum = null;
+      var origFrame = figma.currentPage.findOne(function (n) {
+        return n.type === 'FRAME' && n.width === W && n.height === H && n.x === msg.frameX && Math.abs(n.y - msg.frameY) < 5 && n.name !== '[PREVIEW]';
+      });
+      if (origFrame) {
+        var pgn = origFrame.findOne(function (n) { return n.name === '[PAGE_NUM]'; });
+        if (pgn && pgn.type === 'TEXT') origPageNum = parseInt(pgn.characters);
+      }
+
       // Build preview below the original frame
       var slide = {
         type: msg.slideType,
@@ -646,7 +656,8 @@ figma.ui.onmessage = async function (msg) {
         _courseName: msg.courseName || '',
         _sessionLabel: msg.sessionLabel || '',
         _rawEdit: true,
-        imageRef: msg.imageRef || ''
+        imageRef: msg.imageRef || '',
+        _pageNum: origPageNum
       };
       var previewFrame = buildFrame(slide, msg.frameX, msg.frameY + 1080 + 60);
       previewFrame.name = '[PREVIEW]';

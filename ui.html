@@ -391,8 +391,8 @@
   </div>
 </div>
 
-<div id="syncMeta" style="display:none;height:14px;margin:-4px 0 2px 0;overflow:hidden;">
-  <div id="syncMetaText" style="font-size:9px;color:#555;text-align:center;transition:opacity 0.4s ease;"></div>
+<div id="syncMeta" style="display:none;height:14px;margin:-6px 0 2px 0;overflow:hidden;">
+  <div id="syncMetaText" style="font-size:9px;color:#555;text-align:left;transition:opacity 0.4s ease;"></div>
 </div>
 <style>
 @keyframes syncBlink { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
@@ -552,15 +552,10 @@
 
 <!-- BUILD PANEL -->
 <div id="buildPanel" class="panel active">
-<div id="dataSourceIndicator" style="font-size:10px;color:#666;margin-bottom:4px;display:flex;flex-direction:column;gap:3px;">
-  <div style="display:flex;align-items:center;gap:4px;">
-    <span id="githubDot" style="width:6px;height:6px;border-radius:50%;background:#888;display:inline-block;"></span>
-    <span id="githubStatusText">GitHub: checking...</span>
-  </div>
-  <div style="display:flex;align-items:center;gap:4px;margin-top:2px;">
-    <button id="refreshDataBtn" onclick="refreshCourseData()" style="font-size:9px;padding:2px 8px;background:#2a2a2a;border:1px solid #3a3a3a;border-radius:3px;color:#D4A853;cursor:pointer;">&#8635; Refresh Data</button>
-    <a href="https://github.com/BRANDONIBEN/classroom-slide-builder/actions" target="_blank" style="font-size:9px;color:#555;text-decoration:underline;">Sync Now</a>
-  </div>
+<div id="dataSourceIndicator" style="font-size:10px;color:#666;margin-bottom:4px;display:flex;align-items:center;gap:6px;">
+  <span id="githubDot" style="width:6px;height:6px;border-radius:50%;background:#888;display:inline-block;"></span>
+  <span id="githubStatusText">GitHub: checking...</span>
+  <button id="refreshDataBtn" onclick="refreshCourseData()" style="padding:0;font-size:9px;background:none;border:none;color:#666;cursor:pointer;margin-left:auto;" title="Refresh from GitHub">&#8635;</button>
 </div>
 <div id="updateBanner" style="display:none;background:#3a2e1e;border:1px solid #D4A853;border-radius:4px;padding:6px 10px;margin-bottom:4px;font-size:10px;color:#D4A853;">
   &#9888; Update available — run <code style="background:#2a2a2a;padding:1px 4px;border-radius:2px;">git pull</code> to get the latest version
