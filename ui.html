@@ -354,15 +354,20 @@
   <script>
   function doUnlock() {
     var pw = (document.getElementById('lockPassword').value || '').trim().toLowerCase();
-    document.getElementById('lockError').style.display = 'block';
-    document.getElementById('lockError').textContent = 'Checking: "' + pw + '"...';
     if (pw === 'equip') {
       document.getElementById('lockError').style.display = 'none';
       parent.postMessage({ pluginMessage: { type: 'saveUnlock' } }, '*');
-      document.getElementById('lockScreen').style.display = 'none';
-      document.getElementById('uiWrapper').style.display = 'flex';
+      // Defer to unlockPlugin() once the main script has loaded
+      if (typeof unlockPlugin === 'function') {
+        unlockPlugin();
+      } else {
+        // Fallback if main script hasn't loaded yet
+        document.getElementById('lockScreen').style.display = 'none';
+        document.getElementById('uiWrapper').style.display = 'flex';
+      }
     } else {
-      document.getElementById('lockError').textContent = 'Incorrect — entered "' + pw + '"';
+      document.getElementById('lockError').style.display = 'block';
+      document.getElementById('lockError').textContent = 'Incorrect password';
     }
   }
   document.getElementById('lockPassword').onkeydown = function(e) { if (e.key === 'Enter') doUnlock(); };
