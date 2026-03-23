@@ -1296,6 +1296,8 @@ function parseSlides(lines, courseId) {
     if (/^ILLUSTRATION/i.test(t) || /^IMAGE/i.test(t) || /^ILLUSTRATION/i.test(b)) return 'illustration';
     // Chart/illustration placeholder
     if (/^CHART/i.test(t) || /^CHART/i.test(b)) return 'chart';
+    // Quote detection BEFORE table — quoted text is always a quote, even with verse refs
+    if (/^[\u201C\u2018"]/.test(b)) return 'quote';
     // Table/comparison slide — look for header pattern + verse references as data
     var bLines = b.split('\n').map(function(l) { return l.trim(); }).filter(function(l) { return l.length > 0; });
     if (bLines.length >= 3) {
