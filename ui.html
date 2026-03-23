@@ -430,9 +430,12 @@
     This slide has a saved override.
   </div>
 
-  <div id="editVersions" style="display:none;background:#2a2a2a;border:1px solid #3a3a3a;border-radius:6px;padding:8px 12px;">
-    <label style="margin-bottom:4px;">Version History</label>
-    <div id="editVersionList" style="display:flex;flex-direction:column;gap:4px;"></div>
+  <div id="editVersions" style="display:none;background:#1e1e1e;border:1px solid #333;border-radius:6px;overflow:hidden;">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid #333;">
+      <span style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:#888;">Version History</span>
+      <span id="versionCount" style="font-size:9px;color:#555;"></span>
+    </div>
+    <div id="editVersionList" style="display:flex;flex-direction:column;"></div>
   </div>
 
   <!-- V2: Source View (PDF page browser) -->
@@ -1863,53 +1866,52 @@ function enterEditMode(data) {
   editRevertBtn.style.display = editState.hasOverride ? 'block' : 'none';
 
   // Show version history if available
+  function buildVersionRow(label, labelColor, isActive, onClick) {
+    var row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid #2a2a2a;transition:background 0.1s;cursor:default;';
+    if (isActive) row.style.background = '#252525';
+    row.onmouseenter = function () { row.style.background = '#2a2a2a'; };
+    row.onmouseleave = function () { row.style.background = isActive ? '#252525' : ''; };
+    var left = document.createElement('div');
+    left.style.cssText = 'display:flex;align-items:center;gap:6px;';
+    var dot = document.createElement('span');
+    dot.style.cssText = 'width:6px;height:6px;border-radius:50%;background:' + (labelColor || '#555') + ';flex-shrink:0;';
+    var text = document.createElement('span');
+    text.style.cssText = 'font-size:11px;color:' + (labelColor || '#999') + ';';
+    text.textContent = label;
+    left.appendChild(dot);
+    left.appendChild(text);
+    var btn = document.createElement('button');
+    btn.style.cssText = 'padding:3px 10px;font-size:9px;font-weight:500;background:transparent;color:#888;border:1px solid #3a3a3a;border-radius:4px;cursor:pointer;transition:all 0.1s;text-transform:uppercase;letter-spacing:0.3px;';
+    btn.textContent = isActive ? 'Current' : 'Restore';
+    if (isActive) { btn.style.color = '#555'; btn.style.cursor = 'default'; btn.disabled = true; }
+    else { btn.onmouseenter = function () { btn.style.background = '#333'; btn.style.color = '#ccc'; }; btn.onmouseleave = function () { btn.style.background = 'transparent'; btn.style.color = '#888'; }; }
+    btn.addEventListener('click', onClick);
+    row.appendChild(left);
+    row.appendChild(btn);
+    return row;
+  }
+
   if (data.versions && data.versions.length > 0) {
     editVersions.style.display = 'block';
     editVersionList.innerHTML = '';
+    document.getElementById('versionCount').textContent = (data.versions.length + 1) + ' versions';
     data.versions.forEach(function (v, idx) {
-      var row = document.createElement('div');
-      row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:4px 6px;border-radius:3px;font-size:11px;';
-      var label = document.createElement('span');
-      label.style.color = '#999';
-      label.textContent = v.label;
-      var btn = document.createElement('button');
-      btn.style.cssText = 'padding:2px 8px;font-size:10px;background:#333;color:#aaa;border:1px solid #3a3a3a;border-radius:3px;cursor:pointer;';
-      btn.textContent = 'Restore';
-      btn.addEventListener('click', function () {
+      editVersionList.appendChild(buildVersionRow(v.label, '#888', idx === 0, function () {
         parent.postMessage({ pluginMessage: { type: 'restoreVersion', sessionNum: editState.sessionNum, slideNum: editState.slideNum, versionIndex: idx } }, '*');
-      });
-      row.appendChild(label);
-      row.appendChild(btn);
-      editVersionList.appendChild(row);
+      }));
     });
-    // Add "Original" option
-    var origRow = document.createElement('div');
-    origRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:4px 6px;border-radius:3px;font-size:11px;';
-    var origLabel = document.createElement('span');
-    origLabel.style.color = '#70c870';
-    origLabel.textContent = 'Original (from source)';
-    var origBtn = document.createElement('button');
-    origBtn.style.cssText = 'padding:2px 8px;font-size:10px;background:#2a3a2a;color:#70c870;border:1px solid #3a4a3a;border-radius:3px;cursor:pointer;';
-    origBtn.textContent = 'Restore';
-    origBtn.addEventListener('click', function () {
+    // Add "Original" option at the bottom
+    editVersionList.appendChild(buildVersionRow('Original (from source)', '#6bcb77', false, function () {
       var origSlide = findOriginalSlide(editState.sessionNum, editState.slideNum);
       parent.postMessage({ pluginMessage: { type: 'revertSlide', originalSlide: origSlide, colors: getColorValues(), fontConfig: getFontConfig() } }, '*');
-    });
-    origRow.appendChild(origLabel);
-    origRow.appendChild(origBtn);
-    editVersionList.appendChild(origRow);
+    }));
   } else if (editState.hasOverride) {
     editVersions.style.display = 'block';
     editVersionList.innerHTML = '';
-    var origRow = document.createElement('div');
-    origRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:4px 6px;border-radius:3px;font-size:11px;';
-    var origLabel = document.createElement('span');
-    origLabel.style.color = '#70c870';
-    origLabel.textContent = 'Original (from source)';
-    var origBtn = document.createElement('button');
-    origBtn.style.cssText = 'padding:2px 8px;font-size:10px;background:#2a3a2a;color:#70c870;border:1px solid #3a4a3a;border-radius:3px;cursor:pointer;';
-    origBtn.textContent = 'Restore';
-    origBtn.addEventListener('click', function () {
+    document.getElementById('versionCount').textContent = '1 override';
+    editVersionList.appendChild(buildVersionRow('Current (modified)', '#D4A853', true, function () {}));
+    editVersionList.appendChild(buildVersionRow('Original (from source)', '#6bcb77', false, function () {
       var origSlide = findOriginalSlide(editState.sessionNum, editState.slideNum);
       parent.postMessage({ pluginMessage: { type: 'revertSlide', originalSlide: origSlide, colors: getColorValues(), fontConfig: getFontConfig() } }, '*');
     });
@@ -2280,6 +2282,10 @@ window.onmessage = function (event) {
     if (msg.frameId) editState.frameId = msg.frameId;
     if (msg.frameX !== undefined) editState.frameX = msg.frameX;
     if (msg.frameY !== undefined) editState.frameY = msg.frameY;
+    // Repopulate edit fields from committed frame content
+    if (msg.title !== undefined) editTitle.value = msg.title;
+    if (msg.body !== undefined) editBody.value = msg.body;
+    if (msg.attribution !== undefined) document.getElementById('editAttribution').value = msg.attribution;
     editStatus.textContent = 'Design committed';
     editStatus.className = 'status success';
     status.textContent = 'S' + msg.sessionNum + ' Slide ' + msg.slideNum + ' committed';
@@ -2288,6 +2294,8 @@ window.onmessage = function (event) {
     editOverrideNote.style.display = 'block';
     updateOverrideBadge(msg.overrideCount);
     triggerAutosave(courseIdFromName(editState.courseName));
+    // Rebuild preview from committed content
+    sendEditPreview();
     return;
   }
 

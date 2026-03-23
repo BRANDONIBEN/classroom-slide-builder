@@ -10,6 +10,14 @@
 
 figma.showUI(__html__, { width: 480, height: 560 });
 
+// Clean up any stale preview frames from previous sessions
+(function cleanupStalePreview() {
+  var prev = figma.currentPage.findOne(function (n) {
+    return n.type === 'FRAME' && n.name === '[PREVIEW]';
+  });
+  if (prev) prev.remove();
+})();
+
 // Check if a slide frame is selected on launch
 (function detectSelection() {
   var sel = figma.currentPage.selection;
@@ -372,6 +380,23 @@ figma.ui.onmessage = async function (msg) {
       }
 
       figma.currentPage.selection = [previewFrame];
+
+      // Extract text from the committed frame so the UI can rebuild
+      var committedTexts = [];
+      previewFrame.findAll(function (n) { return n.type === 'TEXT'; }).forEach(function (t) {
+        var fs = t.fontSize;
+        if (typeof fs !== 'number') { try { fs = t.getRangeFontSize(0, 1); } catch (e) { fs = 0; } }
+        if (t.y < 950) committedTexts.push({ chars: t.characters, fontSize: fs, y: t.y });
+      });
+      committedTexts.sort(function (a, b) { return a.y - b.y; });
+      var cTitle = '', cBody = '', cAttrib = '', cBodyFs = 0;
+      for (var ci = 0; ci < committedTexts.length; ci++) {
+        var ct = committedTexts[ci];
+        if (ct.fontSize <= 32 && ct.y < 200 && !cTitle && ct.chars !== '') { cTitle = ct.chars; continue; }
+        if (ct.fontSize >= 32 && !cBody) { cBody = ct.chars; cBodyFs = ct.fontSize; continue; }
+        if (cBody && !cAttrib && ct.chars !== '' && ct.fontSize < cBodyFs) { cAttrib = ct.chars; continue; }
+      }
+
       figma.ui.postMessage({
         type: 'slideCommitted',
         sessionNum: sNum,
@@ -379,6 +404,9 @@ figma.ui.onmessage = async function (msg) {
         frameId: previewFrame.id,
         frameX: previewFrame.x,
         frameY: previewFrame.y,
+        title: cTitle,
+        body: cBody,
+        attribution: cAttrib,
         overrideCount: getOverrideCount()
       });
     } catch (err) {
