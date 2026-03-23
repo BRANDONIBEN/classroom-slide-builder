@@ -399,6 +399,11 @@
     <textarea id="editBody" placeholder="Slide body content..." rows="5"></textarea>
   </div>
 
+  <div id="attributionRow" class="edit-field" style="display:none;">
+    <label>Attribution <span style="font-weight:400;color:#888;">(author or reference)</span></label>
+    <input type="text" id="editAttribution" placeholder="e.g. C.S. Lewis or Psalm 23:1" style="font-size:12px;padding:6px 8px;">
+  </div>
+
   <div id="imageRefRow" class="edit-field" style="display:none;">
     <label>Image Path <span style="font-weight:400;color:#888;">(URL or relative path)</span></label>
     <input type="text" id="editImageRef" placeholder="e.g. images/diagram.png" style="font-size:12px;padding:6px 8px;">
@@ -490,7 +495,7 @@
   <div id="trashSection" style="display:none;background:#2a2a2a;border:1px solid #3a3a3a;border-radius:6px;padding:8px 12px;">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
       <span style="font-size:11px;font-weight:500;color:#999;text-transform:uppercase;letter-spacing:0.5px;">Trash</span>
-      <button id="emptyTrashBtn" style="padding:2px 8px;font-size:10px;background:#3a2a2a;color:#c87070;border:1px solid #4a3a3a;border-radius:3px;cursor:pointer;">Empty</button>
+      <button id="emptyTrashBtn" style="padding:2px 8px;font-size:10px;background:#3a2a2a;color:#c87070;border:1px solid #4a3a3a;border-radius:3px;cursor:pointer;">Empty Trash</button>
     </div>
     <div id="trashList" style="display:flex;flex-direction:column;gap:4px;"></div>
   </div>
@@ -1681,6 +1686,7 @@ function switchTab(tabName) {
   if (qaPanel) qaPanel.classList.toggle('active', tabName === 'qa');
   if (tabName === 'edit') {
     editNoSelection.style.display = hasEditData ? 'none' : 'block';
+    if (!hasEditData) editNoSelection.querySelector('div:last-child').innerHTML = 'Select a slide frame on the canvas,<br>then switch to this tab to edit it.';
     editContent.style.display = hasEditData ? 'flex' : 'none';
     if (hasEditData) sendEditPreview();
     parent.postMessage({ pluginMessage: { type: 'getTrash' } }, '*');
@@ -1702,6 +1708,9 @@ function setEditType(type, triggerPreview) {
   for (var i = 0; i < editTypeBtns.length; i++) {
     editTypeBtns[i].classList.toggle('selected', editTypeBtns[i].getAttribute('data-type') === type);
   }
+  // Show/hide attribution field for quote and scripture types
+  var attrRow = document.getElementById('attributionRow');
+  if (attrRow) attrRow.style.display = (type === 'quote' || type === 'scripture') ? '' : 'none';
   // Show/hide image ref field for illustration type
   var imgRow = document.getElementById('imageRefRow');
   if (imgRow) imgRow.style.display = type === 'illustration' ? '' : 'none';
@@ -1728,6 +1737,7 @@ function enterEditMode(data) {
   setEditType(data.slideType);
   editTitle.value = data.title || '';
   editBody.value = data.body || '';
+  document.getElementById('editAttribution').value = data.attribution || '';
   document.getElementById('editFooterLeft').value = editState.courseName;
   document.getElementById('editFooterRight').value = editState.sessionLabel;
   editSlideInfo.textContent = 'S' + data.sessionNum + ' \u00B7 Slide ' + data.slideNum + ' \u2014 ' + (data.title || 'Untitled');
@@ -1853,6 +1863,7 @@ editUpdateBtn.addEventListener('click', function () {
       slideNum: editState.slideNum,
       title: editTitle.value,
       body: editBody.value,
+      attribution: document.getElementById('editAttribution').value || '',
       courseName: document.getElementById('editFooterLeft').value,
       sessionLabel: document.getElementById('editFooterRight').value,
       imageRef: document.getElementById('editImageRef').value || '',
@@ -2019,6 +2030,7 @@ function sendEditPreview() {
         slideNum: editState.slideNum,
         title: editTitle.value,
         body: editBody.value,
+        attribution: document.getElementById('editAttribution').value || '',
         frameX: editState.frameX,
         frameY: editState.frameY,
         courseName: document.getElementById('editFooterLeft').value,
@@ -2039,6 +2051,7 @@ editBody.addEventListener('input', function () {
 });
 
 editTitle.addEventListener('input', sendEditPreview);
+document.getElementById('editAttribution').addEventListener('input', sendEditPreview);
 document.getElementById('editFooterLeft').addEventListener('input', sendEditPreview);
 document.getElementById('editFooterRight').addEventListener('input', sendEditPreview);
 
@@ -2149,6 +2162,9 @@ window.onmessage = function (event) {
   }
 
   if (msg.type === 'slideCommitted') {
+    if (msg.frameId) editState.frameId = msg.frameId;
+    if (msg.frameX !== undefined) editState.frameX = msg.frameX;
+    if (msg.frameY !== undefined) editState.frameY = msg.frameY;
     editStatus.textContent = 'Design committed';
     editStatus.className = 'status success';
     status.textContent = 'S' + msg.sessionNum + ' Slide ' + msg.slideNum + ' committed';
@@ -2193,13 +2209,15 @@ window.onmessage = function (event) {
   }
 
   if (msg.type === 'slideDeleted') {
-    editStatus.textContent = 'Slide moved to trash';
+    editStatus.textContent = 'Slide deleted — recoverable from trash';
     editStatus.className = 'status success';
     status.textContent = 'Slide moved to trash';
     status.className = 'status success';
     hasEditData = false;
-    editNoSelection.style.display = 'block';
+    editState = { sessionNum: null, slideNum: null, type: '', frameId: null, frameX: null, frameY: null, courseName: '' };
     editContent.style.display = 'none';
+    editNoSelection.style.display = 'block';
+    editNoSelection.querySelector('div:last-child').textContent = 'Slide deleted. Select another frame to edit.';
     if (msg.trash) updateTrashUI(msg.trash);
     setTimeout(resizeUI, 20);
     return;
@@ -2352,9 +2370,16 @@ window.onmessage = function (event) {
     setTimeout(resizeUI, 20);
     return;
   }
+  if (msg.type === 'previewError') {
+    editStatus.textContent = 'Preview: ' + msg.message;
+    editStatus.className = 'status error';
+    return;
+  }
   if (msg.type === 'error') {
     status.textContent = 'Error: ' + msg.message;
     status.className = 'status error';
+    editStatus.textContent = 'Error: ' + msg.message;
+    editStatus.className = 'status error';
     buildBtn.disabled = false;
     editUpdateBtn.disabled = false;
   }

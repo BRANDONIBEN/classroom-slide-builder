@@ -96,24 +96,32 @@ function sendSelectionData() {
     if (nameMatch) {
       var texts = [];
       frame.findAll(function (n) { return n.type === 'TEXT'; }).forEach(function (t) {
-        texts.push({ chars: t.characters, fontSize: t.fontSize, y: t.y, x: t.x });
+        var isItalic = false;
+        try { isItalic = t.fontName && t.fontName.style && t.fontName.style.toLowerCase().indexOf('italic') !== -1; } catch (e) {}
+        texts.push({ chars: t.characters, fontSize: t.fontSize, y: t.y, x: t.x, isItalic: isItalic, opacity: t.opacity });
       });
       texts.sort(function (a, b) { return a.y - b.y; });
       var slideType = nameMatch[1].toLowerCase();
       var sessionNum = parseInt(nameMatch[2]);
       var slideNum = parseInt(nameMatch[3]);
       var titleFromName = nameMatch[4];
-      var title = '', body = '';
+      var title = '', body = '', attribution = '';
+      var bodyFontSize = 0;
       var courseName = '', sessionLabel = '';
       for (var i = 0; i < texts.length; i++) {
         var t = texts[i];
+        // Footer text (below y=950) and page numbers
         if (t.y > 950) {
           if (t.x < 400) courseName = t.chars;
           else if (t.x > 1200) sessionLabel = t.chars;
           continue;
         }
-        if (t.fontSize <= 32 && t.y < 200 && !title && t.chars !== '') title = t.chars;
-        else if (t.fontSize >= 32 && !body) body = t.chars;
+        // Title: small text near top of frame
+        if (t.fontSize <= 32 && t.y < 200 && !title && t.chars !== '') { title = t.chars; continue; }
+        // Body: largest text in main content area
+        if (t.fontSize >= 32 && !body) { body = t.chars; bodyFontSize = t.fontSize; continue; }
+        // Attribution: any text after body that is smaller than body (quote/scripture slides)
+        if (body && !attribution && t.chars !== '' && t.fontSize < bodyFontSize && t.y > 200) { attribution = t.chars; continue; }
       }
       if (!title && titleFromName !== 'Untitled') title = titleFromName;
       var existing = getSlideOverride(sessionNum, slideNum);
@@ -124,6 +132,7 @@ function sendSelectionData() {
         slideNum: slideNum,
         title: existing ? existing.title : title,
         body: existing ? existing.body : body,
+        attribution: existing ? (existing.attribution || '') : attribution,
         frameId: frame.id,
         frameX: frame.x,
         frameY: frame.y,
@@ -259,7 +268,7 @@ figma.ui.onmessage = async function (msg) {
 
       // Find the original frame and replace it
       var oldFrame = null;
-      try { oldFrame = figma.getNodeById(msg.frameId); } catch (e) {}
+      try { oldFrame = await figma.getNodeByIdAsync(msg.frameId); } catch (e) {}
       // Fallback: find by slide name pattern if ID lookup fails
       if (!oldFrame) {
         var namePrefix = 'S' + msg.sessionNum + ' \u00B7 ' + msg.slideNum + ' \u2014';
@@ -277,6 +286,7 @@ figma.ui.onmessage = async function (msg) {
         type: msg.slideType,
         title: msg.title,
         body: msg.body,
+        attribution: msg.attribution || '',
         sessionNum: msg.sessionNum,
         number: msg.slideNum,
         _courseName: msg.courseName || '',
@@ -340,7 +350,7 @@ figma.ui.onmessage = async function (msg) {
       }
 
       // Give preview proper slide name before committing
-      var origFrame = msg.originalFrameId ? figma.getNodeById(msg.originalFrameId) : null;
+      var origFrame = msg.originalFrameId ? await figma.getNodeByIdAsync(msg.originalFrameId) : null;
       var slideType = msg.slideType || 'body';
       previewFrame.name = '[' + slideType.toUpperCase() + '] S' + sNum + ' \u00B7 ' + slNum + ' \u2014 ' + (msg.title || 'Untitled');
       previewFrame.opacity = 1;
@@ -360,6 +370,9 @@ figma.ui.onmessage = async function (msg) {
         type: 'slideCommitted',
         sessionNum: sNum,
         slideNum: slNum,
+        frameId: previewFrame.id,
+        frameX: previewFrame.x,
+        frameY: previewFrame.y,
         overrideCount: getOverrideCount()
       });
     } catch (err) {
@@ -476,7 +489,7 @@ figma.ui.onmessage = async function (msg) {
       if (msg.colors) applyCustomColors(msg.colors);
       if (msg.fontConfig) await applyFontConfig(msg.fontConfig);
       var SPACING = W + 80;
-      var ref = figma.getNodeById(msg.frameId);
+      var ref = await figma.getNodeByIdAsync(msg.frameId);
       if (!ref) { figma.ui.postMessage({ type: 'error', message: 'Frame not found.' }); return; }
       var parentNode = ref.parent || figma.currentPage;
 
@@ -532,7 +545,7 @@ figma.ui.onmessage = async function (msg) {
   }
   if (msg.type === 'deleteSlide') {
     try {
-      var frame = figma.getNodeById(msg.frameId);
+      var frame = await figma.getNodeByIdAsync(msg.frameId);
       if (!frame) { figma.ui.postMessage({ type: 'error', message: 'Frame not found.' }); return; }
       var parentNode = frame.parent || figma.currentPage;
       var deletedX = frame.x;
@@ -575,6 +588,7 @@ figma.ui.onmessage = async function (msg) {
         type: msg.slideType,
         title: msg.title,
         body: msg.body,
+        attribution: msg.attribution || '',
         sessionNum: msg.sessionNum,
         number: msg.slideNum,
         _courseName: msg.courseName || '',
@@ -587,7 +601,8 @@ figma.ui.onmessage = async function (msg) {
       previewFrame.opacity = 0.85;
       figma.currentPage.appendChild(previewFrame);
     } catch (err) {
-      // Silently fail preview — don't block editing
+      console.error('Preview error:', err);
+      figma.ui.postMessage({ type: 'previewError', message: String(err) });
     }
   }
   if (msg.type === 'removePreview') {
@@ -597,7 +612,7 @@ figma.ui.onmessage = async function (msg) {
     if (prev) prev.remove();
   }
   if (msg.type === 'zoomToFrame') {
-    var target = figma.getNodeById(msg.frameId);
+    var target = await figma.getNodeByIdAsync(msg.frameId);
     if (target) {
       figma.currentPage.selection = [target];
       figma.viewport.scrollAndZoomIntoView([target]);
@@ -715,7 +730,7 @@ figma.ui.onmessage = async function (msg) {
   }
   if (msg.type === 'recoverSlide') {
     try {
-      var trashFrame = figma.getNodeById(msg.trashId);
+      var trashFrame = await figma.getNodeByIdAsync(msg.trashId);
       if (!trashFrame) { figma.ui.postMessage({ type: 'error', message: 'Trashed slide not found.' }); return; }
       var clone = trashFrame.clone();
       var origX = parseInt(trashFrame.getPluginData('_trash_x') || '0');
@@ -828,7 +843,7 @@ function getStoragePage() {
   return page;
 }
 
-function saveSlideOverride(sessionNum, slideNum, data) {
+async function saveSlideOverride(sessionNum, slideNum, data) {
   var key = overrideKey(sessionNum, slideNum);
   var existing = getSlideOverride(sessionNum, slideNum);
 
@@ -845,7 +860,7 @@ function saveSlideOverride(sessionNum, slideNum, data) {
 
   // If replacing a design override, remove the old stored frame
   if (existing && existing.mode === 'design' && existing.committedNodeId) {
-    var old = figma.getNodeById(existing.committedNodeId);
+    var old = await figma.getNodeByIdAsync(existing.committedNodeId);
     if (old) old.remove();
   }
   figma.root.setPluginData(key, JSON.stringify(data));
@@ -902,11 +917,11 @@ function getSlideOverride(sessionNum, slideNum) {
   try { return JSON.parse(raw); } catch (e) { return null; }
 }
 
-function clearSlideOverride(sessionNum, slideNum) {
+async function clearSlideOverride(sessionNum, slideNum) {
   var existing = getSlideOverride(sessionNum, slideNum);
   // Clean up stored frame if design mode
   if (existing && existing.mode === 'design' && existing.committedNodeId) {
-    var stored = figma.getNodeById(existing.committedNodeId);
+    var stored = await figma.getNodeByIdAsync(existing.committedNodeId);
     if (stored) stored.remove();
   }
   // Also clean up design frames in version history
@@ -915,7 +930,7 @@ function clearSlideOverride(sessionNum, slideNum) {
   for (var vi = 0; vi < versions.length; vi++) {
     var vd = versions[vi].data;
     if (vd && vd.mode === 'design' && vd.committedNodeId) {
-      var vNode = figma.getNodeById(vd.committedNodeId);
+      var vNode = await figma.getNodeByIdAsync(vd.committedNodeId);
       if (vNode) vNode.remove();
     }
   }
@@ -928,7 +943,7 @@ function clearSlideOverride(sessionNum, slideNum) {
   figma.root.setPluginData('overrideIndex', JSON.stringify(index));
 }
 
-function clearAllOverrides() {
+async function clearAllOverrides() {
   var index = JSON.parse(figma.root.getPluginData('overrideIndex') || '[]');
   for (var i = 0; i < index.length; i++) {
     var raw = figma.root.getPluginData(index[i]);
@@ -936,7 +951,7 @@ function clearAllOverrides() {
       try {
         var data = JSON.parse(raw);
         if (data.mode === 'design' && data.committedNodeId) {
-          var stored = figma.getNodeById(data.committedNodeId);
+          var stored = await figma.getNodeByIdAsync(data.committedNodeId);
           if (stored) stored.remove();
         }
       } catch (e) {}
@@ -1217,10 +1232,10 @@ async function renumberPageNumbers(parentNode) {
 
 // Build or clone a slide frame, respecting overrides
 // Returns the frame to append to the page
-function buildOrCloneFrame(slide, x, y) {
+async function buildOrCloneFrame(slide, x, y) {
   var override = getSlideOverride(slide.sessionNum, slide.number);
   if (override && override.mode === 'design' && override.committedNodeId) {
-    var stored = figma.getNodeById(override.committedNodeId);
+    var stored = await figma.getNodeByIdAsync(override.committedNodeId);
     if (stored) {
       var clone = stored.clone();
       clone.x = x;
@@ -1870,9 +1885,9 @@ function buildQuoteSlide(frame, slide) {
     slide.title = '';
   }
 
-  var parts = slide._rawEdit ? { body: slide.body, attribution: '' } : extractAttribution(slide.body);
+  var parts = slide._rawEdit ? { body: slide.body, attribution: slide.attribution || '' } : extractAttribution(slide.body);
   var body = slide._rawEdit ? parts.body : ensurePeriod(polishText(cleanQuote(parts.body)));
-  var attribution = parts.attribution ? cleanAttribution(polishText(parts.attribution)) : '';
+  var attribution = parts.attribution ? (slide._rawEdit ? parts.attribution : cleanAttribution(polishText(parts.attribution))) : '';
   // Use scripture ref from title as attribution if no other attribution found
   if (!attribution && scriptureFromTitle) {
     attribution = slide._rawEdit ? scriptureFromTitle : polishText(scriptureFromTitle);
