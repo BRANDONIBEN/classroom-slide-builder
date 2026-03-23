@@ -347,10 +347,16 @@
 
 <div style="display:flex;align-items:center;justify-content:space-between;">
   <h2>Classroom Slide Builder</h2>
-  <select id="versionSelect" style="padding:2px 4px;font-size:9px;font-weight:600;background:#2a2a2a;color:#6bcb77;border:1px solid #3a3a3a;border-radius:3px;cursor:pointer;outline:none;width:auto;">
-    <option value="v1">V1</option>
-    <option value="v2" selected>V2</option>
-  </select>
+  <div style="display:flex;align-items:center;gap:8px;">
+    <div id="syncIndicator" style="display:flex;align-items:center;gap:4px;font-size:9px;color:#888;" title="GitHub sync status">
+      <span id="syncDot" style="width:6px;height:6px;border-radius:50%;background:#6bcb77;display:inline-block;"></span>
+      <span id="syncText">Synced</span>
+    </div>
+    <select id="versionSelect" style="padding:2px 4px;font-size:9px;font-weight:600;background:#2a2a2a;color:#6bcb77;border:1px solid #3a3a3a;border-radius:3px;cursor:pointer;outline:none;width:auto;">
+      <option value="v1">V1</option>
+      <option value="v2" selected>V2</option>
+    </select>
+  </div>
 </div>
 
 <div class="tab-bar">
@@ -794,7 +800,7 @@ var SRC_PAGE_CACHE = {};
 
 async function loadRemoteIndex() {
   try {
-    var resp = await fetch(GITHUB_DATA_URL + '/index.json');
+    var resp = await fetch(GITHUB_DATA_URL + '/index.json?t=' + Date.now());
     var index = await resp.json();
     COURSES = {};
     for (var i = 0; i < index.courses.length; i++) {
@@ -816,7 +822,7 @@ async function loadRemoteCourseText(courseId) {
   var course = COURSES[courseId];
   if (!course || !course.file) return '';
   try {
-    var resp = await fetch(GITHUB_DATA_URL + '/' + course.file);
+    var resp = await fetch(GITHUB_DATA_URL + '/' + course.file + '?t=' + Date.now());
     var text = await resp.json();
     COURSE_TEXT[courseId] = text;
     return text;
@@ -824,6 +830,31 @@ async function loadRemoteCourseText(courseId) {
     console.warn('Failed to load course text for ' + courseId + ':', e);
     return '';
   }
+}
+
+// Sync indicator helpers
+function setSyncStatus(state, text) {
+  var dot = document.getElementById('syncDot');
+  var label = document.getElementById('syncText');
+  if (state === 'synced') { dot.style.background = '#6bcb77'; label.textContent = text || 'Synced'; label.style.color = '#888'; }
+  else if (state === 'syncing') { dot.style.background = '#D4A853'; label.textContent = text || 'Syncing...'; label.style.color = '#D4A853'; }
+  else if (state === 'saving') { dot.style.background = '#D4A853'; label.textContent = text || 'Saving...'; label.style.color = '#D4A853'; }
+  else if (state === 'error') { dot.style.background = '#c87070'; label.textContent = text || 'Sync error'; label.style.color = '#c87070'; }
+}
+
+// Auto-sync: refresh data from GitHub after any edit/commit/build push
+async function autoSync() {
+  setSyncStatus('syncing');
+  COURSE_TEXT = {};
+  PARSED_CACHE = {};
+  SRC_PAGE_CACHE = {};
+  PAGE_MAP = null;
+  await loadRemoteIndex();
+  try {
+    var pmResp = await fetch(GITHUB_DATA_URL + '/page_map.json?t=' + Date.now());
+    if (pmResp.ok) PAGE_MAP = await pmResp.json();
+  } catch (e) {}
+  setSyncStatus('synced');
 }
 
 // Refresh data — clears cache and re-fetches from GitHub
@@ -861,6 +892,7 @@ async function checkPluginVersion() {
 // Initialize: try remote first, fall back to embedded
 async function initCourseData() {
   addDiagLog('Loading course index from GitHub...');
+  setSyncStatus('syncing', 'Loading...');
   document.getElementById('githubDot').style.background = '#D4A853';
   document.getElementById('githubStatusText').textContent = 'GitHub: connecting...';
   var loaded = await loadRemoteIndex();
@@ -872,10 +904,10 @@ async function initCourseData() {
   }
   // Page map for source view — load from GitHub if available
   try {
-    var pmResp = await fetch(GITHUB_DATA_URL + '/page_map.json');
+    var pmResp = await fetch(GITHUB_DATA_URL + '/page_map.json?t=' + Date.now());
     if (pmResp.ok) {
       PAGE_MAP = await pmResp.json();
-      addDiagLog('Page map loaded from GitHub (' + Object.keys(PAGE_MAP).length + ' courses)');
+      addDiagLog('Page map loaded (' + Object.keys(PAGE_MAP).length + ' courses)');
     }
   } catch (e) {
     addDiagLog('Page map not available: ' + e.message);
@@ -901,6 +933,7 @@ async function initCourseData() {
   }
   populateSessions();
   setTimeout(refreshOverrideCount, 200);
+  setSyncStatus('synced');
 }
 
 function showNoCourses() {
@@ -2510,7 +2543,7 @@ async function loadSourcePage(pageNum) {
   img.style.display = 'none';
   try {
     // Page images served from GitHub (pages/ directory)
-    var pageUrl = GITHUB_DATA_URL.replace('/data', '/pages/' + courseId + '/page_' + pageNum + '.png');
+    var pageUrl = GITHUB_DATA_URL.replace('/data', '/pages/' + courseId + '/page_' + pageNum + '.png') + '?t=' + Date.now();
     var resp = await fetch(pageUrl);
     if (!resp.ok) throw new Error('Page image not found');
     var blob = await resp.blob();
