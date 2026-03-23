@@ -381,8 +381,8 @@
   <h2>Classroom Slide Builder</h2>
   <div style="display:flex;align-items:center;gap:8px;">
     <div id="syncIndicator" style="display:flex;align-items:center;gap:4px;font-size:9px;color:#666;cursor:default;" title="GitHub sync status">
-      <span id="syncDot" style="width:5px;height:5px;border-radius:50%;background:#6bcb77;display:inline-block;"></span>
-      <span id="syncText">Synced</span>
+      <span id="syncDot" style="width:6px;height:6px;border-radius:50%;background:#888;display:inline-block;"></span>
+      <span id="syncText"></span>
     </div>
     <select id="versionSelect" style="padding:2px 4px;font-size:9px;font-weight:600;background:#2a2a2a;color:#6bcb77;border:1px solid #3a3a3a;border-radius:3px;cursor:pointer;outline:none;width:auto;">
       <option value="v1">V1</option>
@@ -391,16 +391,19 @@
   </div>
 </div>
 
-<div id="syncMeta" style="display:none;overflow:hidden;height:16px;margin:-4px 0 2px 0;">
-  <div id="syncMetaText" style="font-size:9px;color:#555;white-space:nowrap;animation:syncScroll 12s linear infinite;"></div>
+<div id="syncMeta" style="display:none;height:14px;margin:-4px 0 2px 0;overflow:hidden;">
+  <div id="syncMetaText" style="font-size:9px;color:#555;text-align:center;transition:opacity 0.4s ease;"></div>
 </div>
-<style>@keyframes syncScroll { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }</style>
+<style>
+@keyframes syncBlink { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
+</style>
 
 <div class="tab-bar">
   <button class="tab active" id="tabBuild" data-tab="build">Build</button>
   <button class="tab" id="tabEdit" data-tab="edit">Edit Slide</button>
   <button class="tab" id="tabQA" data-tab="qa" data-v2 style="display:none;">QA</button>
 </div>
+<div id="offlineBanner" style="display:none;background:#3a3020;border:1px solid #5a4a30;border-radius:6px;padding:6px 10px;font-size:11px;color:#D4A853;text-align:center;">GitHub unavailable &mdash; some features disabled</div>
 
 <!-- EDIT SLIDE PANEL -->
 <div id="editPanel" class="panel">
@@ -958,26 +961,99 @@ function triggerAutosave(courseId) {
 function setSyncStatus(state, text) {
   var dot = document.getElementById('syncDot');
   var label = document.getElementById('syncText');
-  if (state === 'synced') { dot.style.background = '#6bcb77'; label.textContent = text || 'Synced'; label.style.color = '#666'; }
-  else if (state === 'syncing') { dot.style.background = '#D4A853'; label.textContent = text || 'Syncing...'; label.style.color = '#D4A853'; }
-  else if (state === 'saving') { dot.style.background = '#D4A853'; label.textContent = text || 'Saving...'; label.style.color = '#D4A853'; }
-  else if (state === 'error') { dot.style.background = '#c87070'; label.textContent = text || 'Sync error'; label.style.color = '#c87070'; }
+  dot.style.animation = 'none';
+  if (state === 'synced') {
+    dot.style.background = '#6bcb77';
+    dot.style.animation = 'syncBlink 2s ease-in-out infinite';
+    // Show brief status text if provided (e.g. "Saved"), then fade out
+    if (text) {
+      label.textContent = text;
+      label.style.color = '#6bcb77';
+      setTimeout(function () { label.textContent = ''; }, 2000);
+    } else {
+      label.textContent = '';
+    }
+    label.style.color = '#666';
+  } else if (state === 'syncing') {
+    dot.style.background = '#D4A853';
+    dot.style.animation = 'syncBlink 1s ease-in-out infinite';
+    label.textContent = text || 'Syncing...';
+    label.style.color = '#D4A853';
+  } else if (state === 'saving') {
+    dot.style.background = '#D4A853';
+    dot.style.animation = 'syncBlink 1s ease-in-out infinite';
+    label.textContent = text || 'Saving...';
+    label.style.color = '#D4A853';
+  } else if (state === 'error') {
+    dot.style.background = '#888';
+    dot.style.animation = 'none';
+    label.textContent = 'Disconnected';
+    label.style.color = '#888';
+  } else if (state === 'offline') {
+    dot.style.background = '#888';
+    dot.style.animation = 'none';
+    label.textContent = 'Disconnected';
+    label.style.color = '#888';
+  }
+}
+
+var syncMetaMessages = [];
+var syncMetaIndex = 0;
+var syncMetaTimer = null;
+var lastSyncTime = null;
+
+function formatTimeAgo(date) {
+  if (!date) return '';
+  var diff = Math.floor((Date.now() - date.getTime()) / 1000);
+  if (diff < 60) return 'just now';
+  if (diff < 3600) return Math.floor(diff / 60) + ' min ago';
+  if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
 function updateSyncMeta() {
   var meta = document.getElementById('syncMeta');
-  var text = document.getElementById('syncMetaText');
+  var textEl = document.getElementById('syncMetaText');
   var courseIds = Object.keys(COURSES);
   if (courseIds.length === 0) { meta.style.display = 'none'; return; }
-  var parts = courseIds.map(function (id) {
-    var c = COURSES[id];
-    return c.name + ' (' + (c.sessions ? c.sessions.length : '?') + ' sessions)';
-  });
-  var overrideCount = 0;
-  try { overrideCount = typeof getOverrideCount === 'function' ? 0 : 0; } catch (e) {}
-  var pm = PAGE_MAP ? Object.keys(PAGE_MAP).length + ' mapped' : 'no page map';
-  text.textContent = 'GitHub \u2192 ' + parts.join(' \u00B7 ') + ' \u00B7 ' + pm + ' \u00B7 ' + (REMOTE_MODE ? 'Remote' : 'Local');
+
+  lastSyncTime = new Date();
+  // Build message list
+  syncMetaMessages = [];
+  syncMetaMessages.push('Last sync: ' + formatTimeAgo(lastSyncTime));
+  syncMetaMessages.push(courseIds.length + ' courses loaded');
+  var totalSessions = 0;
+  for (var i = 0; i < courseIds.length; i++) {
+    var c = COURSES[courseIds[i]];
+    totalSessions += c.sessions ? c.sessions.length : 0;
+  }
+  syncMetaMessages.push(totalSessions + ' sessions across ' + courseIds.length + ' courses');
+  if (PAGE_MAP) {
+    var mappedSlides = 0;
+    var pmKeys = Object.keys(PAGE_MAP);
+    for (var j = 0; j < pmKeys.length; j++) {
+      if (PAGE_MAP[pmKeys[j]] && PAGE_MAP[pmKeys[j]].pageCount) mappedSlides += PAGE_MAP[pmKeys[j]].pageCount;
+    }
+    if (mappedSlides > 0) syncMetaMessages.push(mappedSlides + ' source pages mapped');
+  }
+
+  syncMetaIndex = 0;
+  textEl.textContent = syncMetaMessages[0] || '';
   meta.style.display = 'block';
+
+  // Clear existing timer
+  if (syncMetaTimer) clearInterval(syncMetaTimer);
+  // Cycle messages every 4 seconds with fade
+  syncMetaTimer = setInterval(function () {
+    // Update "Last sync" message with fresh relative time
+    if (lastSyncTime) syncMetaMessages[0] = 'Last sync: ' + formatTimeAgo(lastSyncTime);
+    textEl.style.opacity = '0';
+    setTimeout(function () {
+      syncMetaIndex = (syncMetaIndex + 1) % syncMetaMessages.length;
+      textEl.textContent = syncMetaMessages[syncMetaIndex];
+      textEl.style.opacity = '1';
+    }, 300);
+  }, 4000);
 }
 
 // Auto-sync: refresh data from GitHub after any edit/commit/build push
@@ -1028,6 +1104,8 @@ async function checkPluginVersion() {
 }
 
 // Initialize: try remote first, fall back to embedded
+var OFFLINE_MODE = false;
+
 async function initCourseData() {
   addDiagLog('Loading course index from GitHub...');
   setSyncStatus('syncing', 'Loading...');
@@ -1036,9 +1114,25 @@ async function initCourseData() {
   var loaded = await loadRemoteIndex();
   if (loaded) {
     addDiagLog('GitHub: index loaded (' + Object.keys(COURSES).length + ' courses)');
+    OFFLINE_MODE = false;
+    document.getElementById('offlineBanner').style.display = 'none';
   } else {
-    addDiagLog('GitHub: failed, using fallback data');
+    addDiagLog('WARNING: GitHub unreachable \u2014 using offline mode');
     useFallbackData();
+    // Check if fallback had data
+    if (Object.keys(COURSES).length === 0) {
+      addDiagLog('WARNING: No fallback data available either');
+      OFFLINE_MODE = true;
+      setSyncStatus('offline');
+      document.getElementById('offlineBanner').style.display = 'block';
+      enableOfflineUI();
+      showNoCourses();
+      return;
+    }
+    OFFLINE_MODE = true;
+    setSyncStatus('offline');
+    document.getElementById('offlineBanner').style.display = 'block';
+    enableOfflineUI();
   }
   // Page map for source view — load from GitHub if available
   try {
@@ -1046,9 +1140,11 @@ async function initCourseData() {
     if (pmResp.ok) {
       PAGE_MAP = await pmResp.json();
       addDiagLog('Page map loaded (' + Object.keys(PAGE_MAP).length + ' courses)');
+    } else {
+      addDiagLog('WARNING: Page map not available');
     }
   } catch (e) {
-    addDiagLog('Page map not available: ' + e.message);
+    addDiagLog('WARNING: Page map not available');
   }
   // Populate UI
   var courseSelect = document.getElementById('courseSelect');
@@ -1071,8 +1167,26 @@ async function initCourseData() {
   }
   populateSessions();
   setTimeout(refreshOverrideCount, 200);
-  setSyncStatus('synced');
+  if (!OFFLINE_MODE) {
+    setSyncStatus('synced');
+  }
   updateSyncMeta();
+}
+
+function enableOfflineUI() {
+  // Gray out GitHub-dependent fields when offline but don't break the plugin
+  var buildBtn = document.getElementById('buildBtn');
+  if (buildBtn && !REMOTE_MODE) {
+    buildBtn.style.opacity = '0.5';
+    buildBtn.style.pointerEvents = 'none';
+  }
+  var sessionSel = document.getElementById('sessionSelect');
+  if (sessionSel && !REMOTE_MODE) {
+    sessionSel.style.opacity = '0.5';
+    sessionSel.style.pointerEvents = 'none';
+  }
+  // Set disconnected indicator
+  setSyncStatus('offline');
 }
 
 function showNoCourses() {
@@ -1908,7 +2022,16 @@ function enterEditMode(data) {
   editRevertBtn.style.display = editState.hasOverride ? 'block' : 'none';
 
   // Show version history if available
-  function buildVersionRow(label, labelColor, isActive, onClick) {
+  function formatVersionTimestamp(isoStr) {
+    if (!isoStr) return '';
+    try {
+      var d = new Date(isoStr);
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ', ' +
+        d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    } catch (e) { return ''; }
+  }
+
+  function buildVersionRow(label, timestamp, labelColor, isActive, onClick) {
     var row = document.createElement('div');
     row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:6px 12px;border-bottom:1px solid #252525;cursor:' + (isActive ? 'default' : 'pointer') + ';transition:background 0.1s;';
     if (isActive) row.style.background = '#222';
@@ -1918,14 +2041,23 @@ function enterEditMode(data) {
       row.onclick = onClick;
     }
     var left = document.createElement('div');
-    left.style.cssText = 'display:flex;align-items:center;gap:6px;min-width:0;';
+    left.style.cssText = 'display:flex;align-items:center;gap:6px;min-width:0;flex:1;';
     var dot = document.createElement('span');
     dot.style.cssText = 'width:5px;height:5px;border-radius:50%;background:' + (labelColor || '#555') + ';flex-shrink:0;';
+    var textWrap = document.createElement('div');
+    textWrap.style.cssText = 'min-width:0;';
     var text = document.createElement('span');
-    text.style.cssText = 'font-size:10px;color:' + (isActive ? '#999' : '#bbb') + ';overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+    text.style.cssText = 'font-size:10px;color:' + (isActive ? '#999' : '#bbb') + ';display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
     text.textContent = label;
+    textWrap.appendChild(text);
+    if (timestamp) {
+      var ts = document.createElement('span');
+      ts.style.cssText = 'font-size:9px;color:#555;display:block;';
+      ts.textContent = 'Modified ' + timestamp;
+      textWrap.appendChild(ts);
+    }
     left.appendChild(dot);
-    left.appendChild(text);
+    left.appendChild(textWrap);
     row.appendChild(left);
     if (isActive) {
       var badge = document.createElement('span');
@@ -1933,10 +2065,11 @@ function enterEditMode(data) {
       badge.textContent = 'current';
       row.appendChild(badge);
     } else {
-      var arrow = document.createElement('span');
-      arrow.style.cssText = 'font-size:10px;color:#555;flex-shrink:0;';
-      arrow.textContent = '\u21A9';
-      row.appendChild(arrow);
+      var restoreLink = document.createElement('span');
+      restoreLink.style.cssText = 'font-size:10px;color:#7070c8;flex-shrink:0;cursor:pointer;';
+      restoreLink.textContent = 'Restore';
+      restoreLink.onclick = function (e) { e.stopPropagation(); onClick(); };
+      row.appendChild(restoreLink);
     }
     return row;
   }
@@ -1945,13 +2078,21 @@ function enterEditMode(data) {
     editVersions.style.display = 'block';
     editVersionList.innerHTML = '';
     document.getElementById('versionCount').textContent = (data.versions.length + 1) + ' versions';
-    data.versions.forEach(function (v, idx) {
-      editVersionList.appendChild(buildVersionRow(v.label, '#888', idx === 0, function () {
-        parent.postMessage({ pluginMessage: { type: 'restoreVersion', sessionNum: editState.sessionNum, slideNum: editState.slideNum, versionIndex: idx } }, '*');
-      }));
-    });
+    // Current version at top
+    var currentTs = data.versions.length > 0 ? formatVersionTimestamp(data.versions[data.versions.length - 1].timestamp) : '';
+    editVersionList.appendChild(buildVersionRow('Current (modified)', currentTs, '#D4A853', true, function () {}));
+    // Past versions, newest first
+    for (var vi = data.versions.length - 1; vi >= 0; vi--) {
+      (function (idx) {
+        var v = data.versions[idx];
+        var vTs = formatVersionTimestamp(v.timestamp);
+        editVersionList.appendChild(buildVersionRow(v.label, vTs, '#888', false, function () {
+          parent.postMessage({ pluginMessage: { type: 'restoreVersion', sessionNum: editState.sessionNum, slideNum: editState.slideNum, versionIndex: idx, colors: getColorValues() } }, '*');
+        }));
+      })(vi);
+    }
     // Add "Original" option at the bottom
-    editVersionList.appendChild(buildVersionRow('Original (from source)', '#6bcb77', false, function () {
+    editVersionList.appendChild(buildVersionRow('Original (from source)', '', '#6bcb77', false, function () {
       var origSlide = findOriginalSlide(editState.sessionNum, editState.slideNum);
       parent.postMessage({ pluginMessage: { type: 'revertSlide', originalSlide: origSlide, colors: getColorValues(), fontConfig: getFontConfig() } }, '*');
     }));
@@ -1959,8 +2100,10 @@ function enterEditMode(data) {
     editVersions.style.display = 'block';
     editVersionList.innerHTML = '';
     document.getElementById('versionCount').textContent = '1 override';
-    editVersionList.appendChild(buildVersionRow('Current (modified)', '#D4A853', true, function () {}));
-    editVersionList.appendChild(buildVersionRow('Original (from source)', '#6bcb77', false, function () {
+    var nowTs = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ', ' +
+      new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    editVersionList.appendChild(buildVersionRow('Current (modified)', nowTs, '#D4A853', true, function () {}));
+    editVersionList.appendChild(buildVersionRow('Original (from source)', '', '#6bcb77', false, function () {
       var origSlide = findOriginalSlide(editState.sessionNum, editState.slideNum);
       parent.postMessage({ pluginMessage: { type: 'revertSlide', originalSlide: origSlide, colors: getColorValues(), fontConfig: getFontConfig() } }, '*');
     }));
@@ -2113,14 +2256,13 @@ document.getElementById('emptyTrashBtn').addEventListener('click', function () {
 function updateTrashUI(items) {
   var section = document.getElementById('trashSection');
   var list = document.getElementById('trashList');
+  list.innerHTML = '';
   if (!items || items.length === 0) {
     section.style.display = 'none';
-    list.innerHTML = '';
     setTimeout(resizeUI, 20);
     return;
   }
   section.style.display = 'block';
-  list.innerHTML = '';
   items.forEach(function (item) {
     var row = document.createElement('div');
     row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:4px 6px;border-radius:3px;font-size:11px;';
@@ -2329,6 +2471,7 @@ window.onmessage = function (event) {
     if (msg.frameX !== undefined) editState.frameX = msg.frameX;
     if (msg.frameY !== undefined) editState.frameY = msg.frameY;
     // Repopulate edit fields from committed frame content
+    if (msg.slideType) setEditType(msg.slideType);
     if (msg.title !== undefined) editTitle.value = msg.title;
     if (msg.body !== undefined) editBody.value = msg.body;
     if (msg.attribution !== undefined) document.getElementById('editAttribution').value = msg.attribution;
@@ -3190,7 +3333,7 @@ function resizeUI() {
   if (lock.style.display !== 'none') {
     h = lock.offsetHeight + 32;
   } else {
-    h = wrapper.offsetHeight + 32;
+    h = wrapper.scrollHeight + 32;
   }
   if (h < 480) h = 480;
   parent.postMessage({ pluginMessage: { type: 'resize', height: h } }, '*');

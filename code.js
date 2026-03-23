@@ -39,6 +39,8 @@ figma.showUI(__html__, { width: 480, height: 560 });
 
       var title = '';
       var body = '';
+      var attribution = '';
+      var bodyFontSize = 0;
       var courseName = '', sessionLabel = '';
 
       for (var i = 0; i < texts.length; i++) {
@@ -49,9 +51,13 @@ figma.showUI(__html__, { width: 480, height: 560 });
           continue;
         }
         if (t.fontSize <= 32 && t.y < 200 && !title && t.chars !== '') {
-          title = t.chars;
-        } else if (t.fontSize >= 32 && !body) {
-          body = t.chars;
+          title = t.chars; continue;
+        }
+        if (t.fontSize >= 32 && !body) {
+          body = t.chars; bodyFontSize = t.fontSize; continue;
+        }
+        if (body && !attribution && t.chars !== '' && t.fontSize < bodyFontSize && t.y > 200) {
+          attribution = t.chars; continue;
         }
       }
 
@@ -66,6 +72,7 @@ figma.showUI(__html__, { width: 480, height: 560 });
         slideNum: slideNum,
         title: existing ? existing.title : title,
         body: existing ? existing.body : body,
+        attribution: existing ? (existing.attribution || '') : attribution,
         frameId: frame.id,
         frameX: frame.x,
         frameY: frame.y,
@@ -279,6 +286,7 @@ figma.ui.onmessage = async function (msg) {
         type: msg.slideType,
         title: msg.title,
         body: msg.body,
+        attribution: msg.attribution || '',
         imageRef: msg.imageRef || ''
       });
 
@@ -403,6 +411,7 @@ figma.ui.onmessage = async function (msg) {
         type: 'slideCommitted',
         sessionNum: sNum,
         slideNum: slNum,
+        slideType: slideType,
         frameId: previewFrame.id,
         frameX: previewFrame.x,
         frameY: previewFrame.y,
@@ -508,7 +517,7 @@ figma.ui.onmessage = async function (msg) {
         var y = frame.y;
         var parentNode = frame.parent;
         frame.remove();
-        var slide = { type: ver.data.type, title: ver.data.title, body: ver.data.body, sessionNum: sNum, number: slNum, _courseName: verCourse, _sessionLabel: verSession };
+        var slide = { type: ver.data.type, title: ver.data.title, body: ver.data.body, attribution: ver.data.attribution || '', sessionNum: sNum, number: slNum, _courseName: verCourse, _sessionLabel: verSession };
         var newFrame = buildFrame(slide, x, y);
         parentNode.appendChild(newFrame);
         figma.currentPage.selection = [newFrame];
@@ -771,7 +780,7 @@ figma.ui.onmessage = async function (msg) {
     });
   }
   if (msg.type === 'resize') {
-    figma.ui.resize(480, Math.min(Math.max(msg.height, 480), 900));
+    figma.ui.resize(480, Math.min(Math.max(msg.height, 480), 1200));
   }
   if (msg.type === 'getTrash') {
     figma.ui.postMessage({ type: 'trashList', items: getTrashList() });
