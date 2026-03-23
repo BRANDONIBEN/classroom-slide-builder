@@ -475,8 +475,8 @@ figma.ui.onmessage = async function (msg) {
         var parentNode = frame.parent;
         frame.remove();
         var slide = msg.originalSlide;
-        slide._courseName = revertCourse;
-        slide._sessionLabel = revertSession;
+        slide._courseName = slide._courseName || revertCourse;
+        slide._sessionLabel = slide._sessionLabel || revertSession;
         slide._pageNum = existingPageNum;
         var newFrame = buildFrame(slide, x, y);
         parentNode.appendChild(newFrame);

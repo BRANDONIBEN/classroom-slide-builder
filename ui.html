@@ -1620,7 +1620,8 @@ function findOriginalSlide(sessionNum, slideNum) {
     var allParsed = getParsedSlides(courseIds[ci]);
     for (var i = 0; i < allParsed.length; i++) {
       if (allParsed[i].sessionNum === sessionNum && allParsed[i].number === slideNum) {
-        return { type: allParsed[i].type, title: allParsed[i].title, body: allParsed[i].body, sessionNum: sessionNum, number: slideNum };
+        var courseName = COURSES[courseIds[ci]] ? COURSES[courseIds[ci]].name : '';
+        return { type: allParsed[i].type, title: allParsed[i].title, body: allParsed[i].body, sessionNum: sessionNum, number: slideNum, _courseName: courseName, _sessionLabel: allParsed[i].session || '' };
       }
     }
   }
@@ -1640,7 +1641,8 @@ async function findOriginalSlideAsync(sessionNum, slideNum) {
     var allParsed = getParsedSlides(courseIds[i]);
     for (var j = 0; j < allParsed.length; j++) {
       if (allParsed[j].sessionNum === sessionNum && allParsed[j].number === slideNum) {
-        return { type: allParsed[j].type, title: allParsed[j].title, body: allParsed[j].body, sessionNum: sessionNum, number: slideNum };
+        var cName = COURSES[courseIds[i]] ? COURSES[courseIds[i]].name : '';
+        return { type: allParsed[j].type, title: allParsed[j].title, body: allParsed[j].body, sessionNum: sessionNum, number: slideNum, _courseName: cName, _sessionLabel: allParsed[j].session || '' };
       }
     }
   }
