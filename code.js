@@ -98,7 +98,10 @@ function sendSelectionData() {
       frame.findAll(function (n) { return n.type === 'TEXT'; }).forEach(function (t) {
         var isItalic = false;
         try { isItalic = t.fontName && t.fontName.style && t.fontName.style.toLowerCase().indexOf('italic') !== -1; } catch (e) {}
-        texts.push({ chars: t.characters, fontSize: t.fontSize, y: t.y, x: t.x, isItalic: isItalic, opacity: t.opacity });
+        // Handle mixed fontSize — use getRangeFontSize for first char as fallback
+        var fs = t.fontSize;
+        if (typeof fs !== 'number') { try { fs = t.getRangeFontSize(0, 1); } catch (e) { fs = 0; } }
+        texts.push({ chars: t.characters, fontSize: fs, y: t.y, x: t.x, isItalic: isItalic, opacity: t.opacity });
       });
       texts.sort(function (a, b) { return a.y - b.y; });
       var slideType = nameMatch[1].toLowerCase();
@@ -124,6 +127,9 @@ function sendSelectionData() {
         if (body && !attribution && t.chars !== '' && t.fontSize < bodyFontSize && t.y > 200) { attribution = t.chars; continue; }
       }
       if (!title && titleFromName !== 'Untitled') title = titleFromName;
+      // Debug: log extraction results
+      console.log('[Selection] texts:', texts.map(function(t) { return { chars: t.chars.substring(0, 40), fontSize: t.fontSize, y: Math.round(t.y), italic: t.isItalic }; }));
+      console.log('[Selection] extracted:', { title: title, body: body ? body.substring(0, 40) + '...' : '', attribution: attribution, bodyFontSize: bodyFontSize });
       var existing = getSlideOverride(sessionNum, slideNum);
       figma.ui.postMessage({
         type: 'editSlide',
@@ -617,6 +623,18 @@ figma.ui.onmessage = async function (msg) {
       figma.currentPage.selection = [target];
       figma.viewport.scrollAndZoomIntoView([target]);
     }
+  }
+  if (msg.type === 'getGithubToken') {
+    var token = figma.root.getPluginData('githubToken') || '';
+    figma.ui.postMessage({ type: 'githubToken', token: token });
+  }
+  if (msg.type === 'setGithubToken') {
+    figma.root.setPluginData('githubToken', msg.token || '');
+    figma.ui.postMessage({ type: 'githubToken', token: msg.token || '' });
+  }
+  if (msg.type === 'exportOverrides') {
+    var allOverrides = getAllOverrides();
+    figma.ui.postMessage({ type: 'overridesExport', courseId: msg.courseId, overrides: allOverrides });
   }
   if (msg.type === 'scanPage') {
     sendPageCharts();

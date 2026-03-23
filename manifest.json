@@ -9,6 +9,7 @@
   "networkAccess": {
     "allowedDomains": [
       "https://raw.githubusercontent.com",
+      "https://api.github.com",
       "https://www.githubstatus.com"
     ]
   }

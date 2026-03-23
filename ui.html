@@ -766,7 +766,15 @@
 <!-- Diagnostic Log -->
 <div style="margin-top:6px;">
   <div id="diagToggle" style="font-size:9px;color:#555;cursor:pointer;text-align:right;user-select:none;">Diagnostics &#9654;</div>
-  <div id="diagBody" style="display:none;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:4px;padding:6px;margin-top:4px;max-height:150px;overflow-y:auto;">
+  <div id="diagBody" style="display:none;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:4px;padding:6px;margin-top:4px;max-height:200px;overflow-y:auto;">
+    <div style="margin-bottom:6px;">
+      <label style="font-size:9px;color:#777;display:block;margin-bottom:2px;">GitHub Token (for autosave)</label>
+      <div style="display:flex;gap:4px;">
+        <input type="password" id="ghTokenInput" placeholder="ghp_..." style="flex:1;font-size:10px;padding:3px 6px;background:#222;border:1px solid #333;border-radius:3px;color:#ccc;">
+        <button id="ghTokenSave" style="font-size:9px;padding:2px 8px;background:#2a3a2a;color:#6bcb77;border:1px solid #3a4a3a;border-radius:3px;cursor:pointer;">Save</button>
+      </div>
+      <span id="ghTokenStatus" style="font-size:8px;color:#555;"></span>
+    </div>
     <div id="diagLog" style="font-size:9px;font-family:monospace;color:#777;line-height:1.5;white-space:pre-wrap;"></div>
   </div>
 </div>
@@ -830,6 +838,80 @@ async function loadRemoteCourseText(courseId) {
     console.warn('Failed to load course text for ' + courseId + ':', e);
     return '';
   }
+}
+
+// ============================================================
+// GITHUB AUTOSAVE — pushes overrides to GitHub on every edit
+// ============================================================
+
+var GITHUB_TOKEN = '';
+var GITHUB_OWNER = 'BRANDONIBEN';
+var GITHUB_REPO = 'classroom-slide-builder';
+var GITHUB_BRANCH = 'main';
+var SAVE_QUEUE = [];
+var SAVING = false;
+
+// Load token from plugin storage
+parent.postMessage({ pluginMessage: { type: 'getGithubToken' } }, '*');
+
+async function ghApiRequest(method, path, body) {
+  if (!GITHUB_TOKEN) return null;
+  var opts = {
+    method: method,
+    headers: {
+      'Authorization': 'Bearer ' + GITHUB_TOKEN,
+      'Accept': 'application/vnd.github.v3+json',
+      'Content-Type': 'application/json'
+    }
+  };
+  if (body) opts.body = JSON.stringify(body);
+  var resp = await fetch('https://api.github.com/repos/' + GITHUB_OWNER + '/' + GITHUB_REPO + '/contents/' + path + '?ref=' + GITHUB_BRANCH, opts);
+  return resp;
+}
+
+async function saveFileToGitHub(filePath, content, message) {
+  if (!GITHUB_TOKEN) { setSyncStatus('error', 'No token'); return false; }
+  setSyncStatus('saving');
+  try {
+    // Get current SHA
+    var existing = await ghApiRequest('GET', filePath);
+    var sha = null;
+    if (existing && existing.ok) {
+      var data = await existing.json();
+      sha = data.sha;
+    }
+    // Commit
+    var encoded = btoa(unescape(encodeURIComponent(content)));
+    var commitBody = { message: message, content: encoded, branch: GITHUB_BRANCH };
+    if (sha) commitBody.sha = sha;
+    var resp = await fetch('https://api.github.com/repos/' + GITHUB_OWNER + '/' + GITHUB_REPO + '/contents/' + filePath, {
+      method: 'PUT',
+      headers: {
+        'Authorization': 'Bearer ' + GITHUB_TOKEN,
+        'Accept': 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(commitBody)
+    });
+    if (!resp.ok) { var err = await resp.text(); console.error('GitHub save failed:', err); setSyncStatus('error', 'Save failed'); return false; }
+    setSyncStatus('synced', 'Saved');
+    return true;
+  } catch (e) {
+    console.error('GitHub save error:', e);
+    setSyncStatus('error', 'Save error');
+    return false;
+  }
+}
+
+// Debounced autosave — collects overrides and pushes to GitHub
+var autosaveTimer = null;
+function triggerAutosave(courseId) {
+  if (!GITHUB_TOKEN) return;
+  clearTimeout(autosaveTimer);
+  autosaveTimer = setTimeout(function () {
+    // Request all overrides from plugin
+    parent.postMessage({ pluginMessage: { type: 'exportOverrides', courseId: courseId } }, '*');
+  }, 2000); // 2s debounce
 }
 
 // Sync indicator helpers
@@ -2186,11 +2268,11 @@ window.onmessage = function (event) {
     editUpdateBtn.disabled = false;
     editState.hasOverride = true;
     editOverrideNote.style.display = 'block';
-    // Update editState with new frame reference
     if (msg.frameId) editState.frameId = msg.frameId;
     if (msg.frameX !== undefined) editState.frameX = msg.frameX;
     if (msg.frameY !== undefined) editState.frameY = msg.frameY;
     if (typeof msg.overrideCount === 'number') updateOverrideBadge(msg.overrideCount);
+    triggerAutosave(courseIdFromName(editState.courseName));
     return;
   }
 
@@ -2205,6 +2287,7 @@ window.onmessage = function (event) {
     editState.hasOverride = true;
     editOverrideNote.style.display = 'block';
     updateOverrideBadge(msg.overrideCount);
+    triggerAutosave(courseIdFromName(editState.courseName));
     return;
   }
 
@@ -2403,6 +2486,21 @@ window.onmessage = function (event) {
     setTimeout(resizeUI, 20);
     return;
   }
+  if (msg.type === 'githubToken') {
+    GITHUB_TOKEN = msg.token || '';
+    if (GITHUB_TOKEN) {
+      addDiagLog('GitHub token loaded (' + GITHUB_TOKEN.substring(0, 8) + '...)');
+    }
+    return;
+  }
+  if (msg.type === 'overridesExport') {
+    // Save overrides JSON to GitHub
+    var courseId = msg.courseId || 'unknown';
+    var overrides = msg.overrides || {};
+    var content = JSON.stringify(overrides, null, 2);
+    saveFileToGitHub('data/' + courseId + '_overrides.json', content, 'Auto-save ' + courseId + ' overrides from Plugin');
+    return;
+  }
   if (msg.type === 'previewError') {
     editStatus.textContent = 'Preview: ' + msg.message;
     editStatus.className = 'status error';
@@ -2483,6 +2581,19 @@ document.getElementById('diagToggle').addEventListener('click', function () {
   body.style.display = isOpen ? 'none' : 'block';
   document.getElementById('diagToggle').innerHTML = isOpen ? 'Diagnostics &#9654;' : 'Diagnostics &#9660;';
   setTimeout(resizeUI, 20);
+});
+
+// GitHub token save
+document.getElementById('ghTokenSave').addEventListener('click', function () {
+  var token = document.getElementById('ghTokenInput').value.trim();
+  if (!token) { document.getElementById('ghTokenStatus').textContent = 'Token required'; return; }
+  parent.postMessage({ pluginMessage: { type: 'setGithubToken', token: token } }, '*');
+  GITHUB_TOKEN = token;
+  document.getElementById('ghTokenInput').value = '';
+  document.getElementById('ghTokenStatus').textContent = 'Saved';
+  document.getElementById('ghTokenStatus').style.color = '#6bcb77';
+  setSyncStatus('synced', 'Token set');
+  addDiagLog('GitHub token saved');
 });
 
 // Service health checks
