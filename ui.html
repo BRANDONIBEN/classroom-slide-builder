@@ -2875,16 +2875,20 @@ async function loadSourcePage(pageNum) {
 
 // Get the PDF page for a specific slide using slide-level mapping, fallback to session start
 function getSourcePage(courseId, sessionNum, slideNum) {
-  if (!PAGE_MAP || !PAGE_MAP[courseId]) return 1;
+  if (!PAGE_MAP || !PAGE_MAP[courseId]) { addDiagLog('getSourcePage: NO PAGE_MAP for ' + courseId); return 1; }
   // Try exact slide mapping first
   var slidePages = PAGE_MAP[courseId].slidePages;
   if (slidePages) {
     var slideKey = 'S' + sessionNum + '_' + slideNum;
-    if (slidePages[slideKey]) return slidePages[slideKey];
+    if (slidePages[slideKey]) { addDiagLog('getSourcePage: exact match ' + slideKey + ' -> page ' + slidePages[slideKey]); return slidePages[slideKey]; }
+    addDiagLog('getSourcePage: no exact match for ' + slideKey + ' (keys sample: ' + Object.keys(slidePages).slice(0, 5).join(',') + ')');
+  } else {
+    addDiagLog('getSourcePage: no slidePages object');
   }
   // Fallback to session start
   var sessionStart = PAGE_MAP[courseId].sessionStart;
-  if (sessionStart && sessionStart[String(sessionNum)]) return sessionStart[String(sessionNum)];
+  if (sessionStart && sessionStart[String(sessionNum)]) { addDiagLog('getSourcePage: session fallback S' + sessionNum + ' -> page ' + sessionStart[String(sessionNum)]); return sessionStart[String(sessionNum)]; }
+  addDiagLog('getSourcePage: all fallbacks failed, returning 1');
   return 1;
 }
 
@@ -2900,6 +2904,7 @@ function courseIdFromName(name) {
 
 v2Toggle('sourceViewToggle', 'sourceViewBody', 'sourceViewArrow', async function () {
   var courseId = courseIdFromName(editState.courseName);
+  addDiagLog('SOURCE DOC: course=' + courseId + ' S' + editState.sessionNum + ' slide=' + editState.slideNum);
   // Try loading page map if not loaded yet
   if (!PAGE_MAP) {
     try {
@@ -2917,6 +2922,7 @@ v2Toggle('sourceViewToggle', 'sourceViewBody', 'sourceViewArrow', async function
   srcPageState.courseId = courseId;
   srcPageState.totalPages = PAGE_MAP[courseId].pageCount;
   var startPage = getSourcePage(courseId, editState.sessionNum, editState.slideNum);
+  addDiagLog('SOURCE DOC: resolved page=' + startPage + ' (slidePages key: S' + editState.sessionNum + '_' + editState.slideNum + ')');
   loadSourcePage(startPage);
 });
 
