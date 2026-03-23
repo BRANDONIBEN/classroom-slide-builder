@@ -2179,10 +2179,10 @@ function buildListSlide(frame, slide) {
   for (var li = 0; li < rawLines.length; li++) {
     var line = rawLines[li].trim();
     if (!line) continue;
-    // Detect sub-items: SUB_ITEM marker from polishText, or ○, or leading whitespace
-    var isSub = /^SUB_ITEM\s/.test(line) || /^[○◦]/.test(line) || /^\s{2,}[●•\-\*○◦]/.test(rawLines[li]);
-    // Strip all bullet/marker characters
-    var clean = line.replace(/^SUB_ITEM\s*/, '').replace(/^[●•○◦\-\*]\s*/, '').replace(/^\d+\.\s*/, '').trim();
+    // Detect sub-items: SUB_ITEM marker, ○, en dash with indent, or leading whitespace
+    var isSub = /^SUB_ITEM\s/.test(line) || /^[○◦]/.test(line) || /^\s{2,}[\u2013\u2014●•\-\*○◦]/.test(rawLines[li]) || /^\s+\u2013/.test(rawLines[li]);
+    // Strip all bullet/marker characters (including em/en dashes from prior formatting)
+    var clean = line.replace(/^SUB_ITEM\s*/, '').replace(/^[●•○◦\u2014\u2013\-\*]\s*/, '').replace(/^\d+\.\s*/, '').trim();
     if (!clean) continue;
     if (!slide._rawEdit) clean = ensurePeriod(clean);
     items.push({ text: clean, sub: isSub });
