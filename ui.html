@@ -348,8 +348,25 @@
   </div>
   <div style="display:flex;flex-direction:column;gap:8px;width:100%;max-width:240px;">
     <input type="text" id="lockPassword" placeholder="Password" autocomplete="off" style="width:100%;padding:10px 14px;background:#2a2a2a;border:1px solid #3a3a3a;border-radius:8px;color:#e0e0e0;font-size:13px;outline:none;text-align:center;box-sizing:border-box;" />
-    <button id="lockUnlockBtn" style="width:100%;padding:10px 16px;background:#D4A853;color:#1e1e1e;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">Unlock</button>
+    <button id="lockUnlockBtn" onclick="doUnlock()" style="width:100%;padding:10px 16px;background:#D4A853;color:#1e1e1e;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">Unlock</button>
     <div id="lockError" style="font-size:11px;color:#c87070;display:none;text-align:center;">Incorrect password</div>
+  </div>
+  <script>
+  function doUnlock() {
+    var pw = (document.getElementById('lockPassword').value || '').trim().toLowerCase();
+    document.getElementById('lockError').style.display = 'block';
+    document.getElementById('lockError').textContent = 'Checking: "' + pw + '"...';
+    if (pw === 'equip') {
+      document.getElementById('lockError').style.display = 'none';
+      parent.postMessage({ pluginMessage: { type: 'saveUnlock' } }, '*');
+      document.getElementById('lockScreen').style.display = 'none';
+      document.getElementById('uiWrapper').style.display = 'flex';
+    } else {
+      document.getElementById('lockError').textContent = 'Incorrect — entered "' + pw + '"';
+    }
+  }
+  document.getElementById('lockPassword').onkeydown = function(e) { if (e.key === 'Enter') doUnlock(); };
+  </script>
   </div>
 </div>
 
@@ -1658,23 +1675,9 @@ function unlockPlugin() {
   setTimeout(resizeUI, 50);
 }
 
-document.getElementById('lockUnlockBtn').onclick = function () {
-  var input = document.getElementById('lockPassword');
-  var pw = (input.value || '').trim().toLowerCase();
-  var expected = (PLUGIN_PASSWORD || '').trim().toLowerCase();
-  console.log('[Unlock] pw=' + JSON.stringify(pw) + ' expected=' + JSON.stringify(expected) + ' match=' + (pw === expected));
-  if (pw === expected) {
-    parent.postMessage({ pluginMessage: { type: 'saveUnlock' } }, '*');
-    unlockPlugin();
-  } else {
-    document.getElementById('lockError').style.display = 'block';
-    document.getElementById('lockError').textContent = 'Incorrect — entered "' + pw + '"';
-  }
-};
+// Unlock handler moved to inline script near the button
 
-document.getElementById('lockPassword').addEventListener('keydown', function (e) {
-  if (e.key === 'Enter') document.getElementById('lockUnlockBtn').click();
-});
+// Enter key handler moved to inline script near the button
 
 // Check if previously unlocked
 parent.postMessage({ pluginMessage: { type: 'checkUnlock' } }, '*');
