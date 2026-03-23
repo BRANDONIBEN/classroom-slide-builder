@@ -139,14 +139,16 @@ function sendSelectionData() {
       console.log('[Selection] texts:', texts.map(function(t) { return { chars: t.chars.substring(0, 40), fontSize: t.fontSize, y: Math.round(t.y), italic: t.isItalic }; }));
       console.log('[Selection] extracted:', { title: title, body: body ? body.substring(0, 40) + '...' : '', attribution: attribution, bodyFontSize: bodyFontSize });
       var existing = getSlideOverride(sessionNum, slideNum);
+      // For design overrides, the override stores a frame clone, not text — use extracted text
+      var useOverrideText = existing && existing.mode !== 'design' && existing.title;
       figma.ui.postMessage({
         type: 'editSlide',
-        slideType: existing ? existing.type : slideType,
+        slideType: (useOverrideText ? existing.type : null) || slideType || 'body',
         sessionNum: sessionNum,
         slideNum: slideNum,
-        title: existing ? existing.title : title,
-        body: existing ? existing.body : body,
-        attribution: existing ? (existing.attribution || '') : attribution,
+        title: useOverrideText ? existing.title : title,
+        body: useOverrideText ? existing.body : body,
+        attribution: useOverrideText ? (existing.attribution || '') : attribution,
         frameId: frame.id,
         frameX: frame.x,
         frameY: frame.y,
@@ -897,8 +899,10 @@ async function saveSlideOverride(sessionNum, slideNum, data) {
   var vKey = key + '_versions';
   var versions = JSON.parse(figma.root.getPluginData(vKey) || '[]');
   if (existing) {
-    var versionLabel = 'v' + (versions.length + 1) + ' \u2014 ' + (existing.mode === 'design' ? 'Design commit' : 'Text edit');
-    versions.push({ label: versionLabel, data: existing });
+    var now = new Date();
+    var ts = (now.getMonth()+1) + '/' + now.getDate() + ' ' + now.getHours() + ':' + String(now.getMinutes()).padStart(2,'0');
+    var versionLabel = 'v' + (versions.length + 1) + ' \u2014 ' + (existing.mode === 'design' ? 'Design' : 'Text') + ' \u00B7 ' + ts;
+    versions.push({ label: versionLabel, data: existing, timestamp: now.toISOString() });
     // Keep max 10 versions
     if (versions.length > 10) versions = versions.slice(versions.length - 10);
     figma.root.setPluginData(vKey, JSON.stringify(versions));
@@ -1810,7 +1814,7 @@ function buildFrame(slide, x, y) {
   frame.x = x;
   frame.y = y;
   frame.fills = [{ type: 'SOLID', color: COLORS.bg }];
-  frame.name = '[' + slide.type.toUpperCase() + '] S' + slide.sessionNum + ' \u00B7 ' + slide.number + ' \u2014 ' + (slide.title || 'Untitled');
+  frame.name = '[' + (slide.type || 'body').toUpperCase() + '] S' + slide.sessionNum + ' \u00B7 ' + slide.number + ' \u2014 ' + (slide.title || 'Untitled');
 
   switch (slide.type) {
     case 'statement':  buildStatementSlide(frame, slide); break;

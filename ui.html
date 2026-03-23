@@ -380,8 +380,8 @@
 <div style="display:flex;align-items:center;justify-content:space-between;">
   <h2>Classroom Slide Builder</h2>
   <div style="display:flex;align-items:center;gap:8px;">
-    <div id="syncIndicator" style="display:flex;align-items:center;gap:4px;font-size:9px;color:#888;" title="GitHub sync status">
-      <span id="syncDot" style="width:6px;height:6px;border-radius:50%;background:#6bcb77;display:inline-block;"></span>
+    <div id="syncIndicator" style="display:flex;align-items:center;gap:4px;font-size:9px;color:#666;cursor:default;" title="GitHub sync status">
+      <span id="syncDot" style="width:5px;height:5px;border-radius:50%;background:#6bcb77;display:inline-block;"></span>
       <span id="syncText">Synced</span>
     </div>
     <select id="versionSelect" style="padding:2px 4px;font-size:9px;font-weight:600;background:#2a2a2a;color:#6bcb77;border:1px solid #3a3a3a;border-radius:3px;cursor:pointer;outline:none;width:auto;">
@@ -390,6 +390,11 @@
     </select>
   </div>
 </div>
+
+<div id="syncMeta" style="display:none;overflow:hidden;height:16px;margin:-4px 0 2px 0;">
+  <div id="syncMetaText" style="font-size:9px;color:#555;white-space:nowrap;animation:syncScroll 12s linear infinite;"></div>
+</div>
+<style>@keyframes syncScroll { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }</style>
 
 <div class="tab-bar">
   <button class="tab active" id="tabBuild" data-tab="build">Build</button>
@@ -953,10 +958,26 @@ function triggerAutosave(courseId) {
 function setSyncStatus(state, text) {
   var dot = document.getElementById('syncDot');
   var label = document.getElementById('syncText');
-  if (state === 'synced') { dot.style.background = '#6bcb77'; label.textContent = text || 'Synced'; label.style.color = '#888'; }
+  if (state === 'synced') { dot.style.background = '#6bcb77'; label.textContent = text || 'Synced'; label.style.color = '#666'; }
   else if (state === 'syncing') { dot.style.background = '#D4A853'; label.textContent = text || 'Syncing...'; label.style.color = '#D4A853'; }
   else if (state === 'saving') { dot.style.background = '#D4A853'; label.textContent = text || 'Saving...'; label.style.color = '#D4A853'; }
   else if (state === 'error') { dot.style.background = '#c87070'; label.textContent = text || 'Sync error'; label.style.color = '#c87070'; }
+}
+
+function updateSyncMeta() {
+  var meta = document.getElementById('syncMeta');
+  var text = document.getElementById('syncMetaText');
+  var courseIds = Object.keys(COURSES);
+  if (courseIds.length === 0) { meta.style.display = 'none'; return; }
+  var parts = courseIds.map(function (id) {
+    var c = COURSES[id];
+    return c.name + ' (' + (c.sessions ? c.sessions.length : '?') + ' sessions)';
+  });
+  var overrideCount = 0;
+  try { overrideCount = typeof getOverrideCount === 'function' ? 0 : 0; } catch (e) {}
+  var pm = PAGE_MAP ? Object.keys(PAGE_MAP).length + ' mapped' : 'no page map';
+  text.textContent = 'GitHub \u2192 ' + parts.join(' \u00B7 ') + ' \u00B7 ' + pm + ' \u00B7 ' + (REMOTE_MODE ? 'Remote' : 'Local');
+  meta.style.display = 'block';
 }
 
 // Auto-sync: refresh data from GitHub after any edit/commit/build push
@@ -1051,6 +1072,7 @@ async function initCourseData() {
   populateSessions();
   setTimeout(refreshOverrideCount, 200);
   setSyncStatus('synced');
+  updateSyncMeta();
 }
 
 function showNoCourses() {
@@ -1888,27 +1910,34 @@ function enterEditMode(data) {
   // Show version history if available
   function buildVersionRow(label, labelColor, isActive, onClick) {
     var row = document.createElement('div');
-    row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid #2a2a2a;transition:background 0.1s;cursor:default;';
-    if (isActive) row.style.background = '#252525';
-    row.onmouseenter = function () { row.style.background = '#2a2a2a'; };
-    row.onmouseleave = function () { row.style.background = isActive ? '#252525' : ''; };
+    row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:6px 12px;border-bottom:1px solid #252525;cursor:' + (isActive ? 'default' : 'pointer') + ';transition:background 0.1s;';
+    if (isActive) row.style.background = '#222';
+    if (!isActive) {
+      row.onmouseenter = function () { row.style.background = '#2a2a2a'; };
+      row.onmouseleave = function () { row.style.background = ''; };
+      row.onclick = onClick;
+    }
     var left = document.createElement('div');
-    left.style.cssText = 'display:flex;align-items:center;gap:6px;';
+    left.style.cssText = 'display:flex;align-items:center;gap:6px;min-width:0;';
     var dot = document.createElement('span');
-    dot.style.cssText = 'width:6px;height:6px;border-radius:50%;background:' + (labelColor || '#555') + ';flex-shrink:0;';
+    dot.style.cssText = 'width:5px;height:5px;border-radius:50%;background:' + (labelColor || '#555') + ';flex-shrink:0;';
     var text = document.createElement('span');
-    text.style.cssText = 'font-size:11px;color:' + (labelColor || '#999') + ';';
+    text.style.cssText = 'font-size:10px;color:' + (isActive ? '#999' : '#bbb') + ';overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
     text.textContent = label;
     left.appendChild(dot);
     left.appendChild(text);
-    var btn = document.createElement('button');
-    btn.style.cssText = 'padding:3px 10px;font-size:9px;font-weight:500;background:transparent;color:#888;border:1px solid #3a3a3a;border-radius:4px;cursor:pointer;transition:all 0.1s;text-transform:uppercase;letter-spacing:0.3px;';
-    btn.textContent = isActive ? 'Current' : 'Restore';
-    if (isActive) { btn.style.color = '#555'; btn.style.cursor = 'default'; btn.disabled = true; }
-    else { btn.onmouseenter = function () { btn.style.background = '#333'; btn.style.color = '#ccc'; }; btn.onmouseleave = function () { btn.style.background = 'transparent'; btn.style.color = '#888'; }; }
-    btn.addEventListener('click', onClick);
     row.appendChild(left);
-    row.appendChild(btn);
+    if (isActive) {
+      var badge = document.createElement('span');
+      badge.style.cssText = 'font-size:8px;text-transform:uppercase;letter-spacing:0.5px;color:#555;flex-shrink:0;';
+      badge.textContent = 'current';
+      row.appendChild(badge);
+    } else {
+      var arrow = document.createElement('span');
+      arrow.style.cssText = 'font-size:10px;color:#555;flex-shrink:0;';
+      arrow.textContent = '\u21A9';
+      row.appendChild(arrow);
+    }
     return row;
   }
 
@@ -1992,7 +2021,7 @@ editUpdateBtn.addEventListener('click', function () {
       frameId: editState.frameId,
       frameX: editState.frameX,
       frameY: editState.frameY,
-      slideType: editState.type,
+      slideType: editState.type || 'body',
       sessionNum: editState.sessionNum,
       slideNum: editState.slideNum,
       title: editTitle.value,
@@ -2029,7 +2058,7 @@ document.getElementById('commitBtnEdit').addEventListener('click', function () {
     type: 'commitSlide',
     sessionNum: editState.sessionNum,
     slideNum: editState.slideNum,
-    slideType: editState.type,
+    slideType: editState.type || 'body',
     title: editTitle.value,
     originalFrameId: editState.frameId
   }}, '*');
@@ -2119,7 +2148,7 @@ document.getElementById('commitBtnBuild').addEventListener('click', function () 
     type: 'commitSlide',
     sessionNum: editState.sessionNum,
     slideNum: editState.slideNum,
-    slideType: editState.type,
+    slideType: editState.type || 'body',
     title: editTitle.value,
     originalFrameId: editState.frameId
   }}, '*');
@@ -2159,7 +2188,7 @@ function sendEditPreview() {
     parent.postMessage({
       pluginMessage: {
         type: 'previewSlide',
-        slideType: editState.type,
+        slideType: editState.type || 'body',
         sessionNum: editState.sessionNum,
         slideNum: editState.slideNum,
         title: editTitle.value,
