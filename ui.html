@@ -347,7 +347,7 @@
     <div style="font-size:11px;color:#666;">Enter your team password to continue</div>
   </div>
   <div style="display:flex;flex-direction:column;gap:8px;width:100%;max-width:240px;">
-    <input type="password" id="lockPassword" placeholder="Password" style="width:100%;padding:10px 14px;background:#2a2a2a;border:1px solid #3a3a3a;border-radius:8px;color:#e0e0e0;font-size:13px;outline:none;text-align:center;box-sizing:border-box;" />
+    <input type="text" id="lockPassword" placeholder="Password" autocomplete="off" style="width:100%;padding:10px 14px;background:#2a2a2a;border:1px solid #3a3a3a;border-radius:8px;color:#e0e0e0;font-size:13px;outline:none;text-align:center;box-sizing:border-box;" />
     <button id="lockUnlockBtn" style="width:100%;padding:10px 16px;background:#D4A853;color:#1e1e1e;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">Unlock</button>
     <div id="lockError" style="font-size:11px;color:#c87070;display:none;text-align:center;">Incorrect password</div>
   </div>
@@ -1658,18 +1658,19 @@ function unlockPlugin() {
   setTimeout(resizeUI, 50);
 }
 
-document.getElementById('lockUnlockBtn').addEventListener('click', function () {
-  var pw = document.getElementById('lockPassword').value.trim().toLowerCase();
-  console.log('[Unlock] entered:', JSON.stringify(pw), 'expected:', JSON.stringify(PLUGIN_PASSWORD), 'match:', pw === PLUGIN_PASSWORD);
-  if (pw === PLUGIN_PASSWORD) {
-    // Save unlock flag separately
+document.getElementById('lockUnlockBtn').onclick = function () {
+  var input = document.getElementById('lockPassword');
+  var pw = (input.value || '').trim().toLowerCase();
+  var expected = (PLUGIN_PASSWORD || '').trim().toLowerCase();
+  console.log('[Unlock] pw=' + JSON.stringify(pw) + ' expected=' + JSON.stringify(expected) + ' match=' + (pw === expected));
+  if (pw === expected) {
     parent.postMessage({ pluginMessage: { type: 'saveUnlock' } }, '*');
     unlockPlugin();
   } else {
     document.getElementById('lockError').style.display = 'block';
-    document.getElementById('lockPassword').value = '';
+    document.getElementById('lockError').textContent = 'Incorrect — entered "' + pw + '"';
   }
-});
+};
 
 document.getElementById('lockPassword').addEventListener('keydown', function (e) {
   if (e.key === 'Enter') document.getElementById('lockUnlockBtn').click();
