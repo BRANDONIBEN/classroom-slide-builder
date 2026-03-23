@@ -1934,10 +1934,7 @@ function enterEditMode(data) {
     editVersionList.appendChild(buildVersionRow('Original (from source)', '#6bcb77', false, function () {
       var origSlide = findOriginalSlide(editState.sessionNum, editState.slideNum);
       parent.postMessage({ pluginMessage: { type: 'revertSlide', originalSlide: origSlide, colors: getColorValues(), fontConfig: getFontConfig() } }, '*');
-    });
-    origRow.appendChild(origLabel);
-    origRow.appendChild(origBtn);
-    editVersionList.appendChild(origRow);
+    }));
   } else {
     editVersions.style.display = 'none';
   }
