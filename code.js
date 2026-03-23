@@ -2157,7 +2157,6 @@ function buildListSlide(frame, slide) {
   }
 
   var body = slide._rawEdit ? slide.body : polishText(slide.body);
-  var sz = slide._groupSize || bodySize(body);
 
   if (slide.title) {
     addText(frame, slide._rawEdit ? slide.title : polishText(slide.title), {
@@ -2172,21 +2171,47 @@ function buildListSlide(frame, slide) {
     });
   }
 
-  var bodyNode = addText(frame, body, {
-    x: SIDE_MARGIN,
+  // Parse list items: ● • - * = top level, ○ or indented = sub-item
+  var rawLines = body.split('\n');
+  var items = [];
+  for (var li = 0; li < rawLines.length; li++) {
+    var line = rawLines[li].trim();
+    if (!line) continue;
+    var isSub = /^[○◦]/.test(line) || /^\s{2,}[●•\-\*○◦]/.test(rawLines[li]);
+    // Strip bullet characters
+    var clean = line.replace(/^[●•○◦\-\*]\s*/, '').replace(/^\d+\.\s*/, '').trim();
+    if (!clean) continue;
+    if (!slide._rawEdit) clean = ensurePeriod(clean);
+    items.push({ text: clean, sub: isSub });
+  }
+
+  // Build formatted list text with clean dash bullets
+  var INDENT = '      ';  // 6 spaces for sub-items
+  var BULLET = '\u2014  '; // em dash + 2 spaces
+  var SUB_BULLET = '\u2013  '; // en dash + 2 spaces
+  var formatted = items.map(function (item) {
+    return item.sub ? (INDENT + SUB_BULLET + item.text) : (BULLET + item.text);
+  }).join('\n');
+
+  // Scale font size based on item count
+  var itemCount = items.length;
+  var sz = itemCount <= 4 ? 28 : itemCount <= 6 ? 24 : itemCount <= 8 ? 22 : 20;
+
+  var listNode = addText(frame, formatted, {
+    x: SIDE_MARGIN + 40,
     y: 0,
-    w: CONTENT_W,
-    h: 200,
+    w: CONTENT_W - 80,
+    h: 400,
     size: sz,
-    color: COLORS.textPrimary,
-    align: 'CENTER',
+    color: COLORS.textBody,
+    align: 'LEFT',
     font: 'serif',
-    lineHeight: 1.8
+    lineHeight: 1.9
   });
 
-  if (bodyNode) {
-    clampToZone(bodyNode, CONTENT_TOP, CONTENT_BOTTOM);
-    centerBlockVertically([bodyNode], CONTENT_TOP, CONTENT_BOTTOM);
+  if (listNode) {
+    clampToZone(listNode, CONTENT_TOP, CONTENT_BOTTOM);
+    centerBlockVertically([listNode], CONTENT_TOP, CONTENT_BOTTOM);
   }
 }
 
