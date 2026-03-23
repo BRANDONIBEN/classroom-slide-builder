@@ -2228,7 +2228,8 @@ document.getElementById('rebuildFromSourceBtn').addEventListener('click', async 
     type: 'revertSlide',
     originalSlide: origSlide,
     colors: getColorValues(),
-    fontConfig: getFontConfig()
+    fontConfig: getFontConfig(),
+    includePageNumbers: document.getElementById('pageNumbersCheck').checked
   }}, '*');
   btn.textContent = 'Rebuild from Source';
   btn.disabled = false;

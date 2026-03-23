@@ -477,7 +477,19 @@ figma.ui.onmessage = async function (msg) {
         var slide = msg.originalSlide;
         slide._courseName = slide._courseName || revertCourse;
         slide._sessionLabel = slide._sessionLabel || revertSession;
-        slide._pageNum = existingPageNum;
+        // Determine page number: from existing frame, or calculate from position if page numbers enabled
+        if (existingPageNum) {
+          slide._pageNum = existingPageNum;
+        } else if (msg.includePageNumbers) {
+          // Count slide frames to the left of this position to determine page number
+          var slidesBefore = 0;
+          parentNode.children.forEach(function (child) {
+            if (child.type === 'FRAME' && child.width === W && child.height === H && child.x < x && child.name !== '[PREVIEW]' && !/^\[COVER\]/.test(child.name)) {
+              slidesBefore++;
+            }
+          });
+          slide._pageNum = slidesBefore + 2; // +2 for cover page offset
+        }
         var newFrame = buildFrame(slide, x, y);
         parentNode.appendChild(newFrame);
         figma.currentPage.selection = [newFrame];
