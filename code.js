@@ -836,6 +836,46 @@ figma.ui.onmessage = async function (msg) {
     }
     figma.ui.postMessage({ type: 'trashList', items: [] });
   }
+  if (msg.type === 'renumberPages') {
+    (async function () {
+      await loadAllFonts();
+      // Get all slide frames on current page sorted by x position
+      var frames = figma.currentPage.children.filter(function (n) {
+        return n.type === 'FRAME' && n.width === W && n.height === H && n.name !== '[PREVIEW]' && !/^\[COVER\]/.test(n.name);
+      }).sort(function (a, b) { return a.x - b.x; });
+      var count = 0;
+      for (var i = 0; i < frames.length; i++) {
+        var pgNode = frames[i].findOne(function (n) { return n.name === '[PAGE_NUM]'; });
+        var pageNum = i + 2; // Page 1 is typically the cover
+        if (pgNode && pgNode.type === 'TEXT') {
+          await figma.loadFontAsync(pgNode.fontName);
+          pgNode.characters = String(pageNum);
+          count++;
+        } else {
+          // Add page number if it doesn't exist
+          var pg = addText(frames[i], String(pageNum), {
+            x: W - 100, y: H - 50, width: 80, height: 30,
+            size: 18, color: COLORS.textFaint, opacity: 0.5,
+            align: 'RIGHT', valign: 'BOTTOM'
+          });
+          if (pg) pg.name = '[PAGE_NUM]';
+          count++;
+        }
+      }
+      figma.ui.postMessage({ type: 'status', message: 'Renumbered ' + count + ' slides' });
+    })();
+  }
+  if (msg.type === 'stripPageNumbers') {
+    var frames = figma.currentPage.children.filter(function (n) {
+      return n.type === 'FRAME' && n.width === W && n.height === H;
+    });
+    var count = 0;
+    frames.forEach(function (f) {
+      var pgNode = f.findOne(function (n) { return n.name === '[PAGE_NUM]'; });
+      if (pgNode) { pgNode.remove(); count++; }
+    });
+    figma.ui.postMessage({ type: 'status', message: 'Stripped page numbers from ' + count + ' slides' });
+  }
   if (msg.type === 'cleanupPrintPages') {
     var removed = cleanupPrintPages();
     figma.ui.postMessage({ type: 'printCleaned', count: removed });

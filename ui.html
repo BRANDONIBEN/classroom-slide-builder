@@ -541,12 +541,12 @@
   </div><!-- /editContent -->
 
   <!-- Trash section — always visible on edit tab when items exist -->
-  <div id="trashSection" style="display:none;margin-top:12px;">
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;">
-      <span style="font-size:10px;font-weight:600;color:#666;text-transform:uppercase;letter-spacing:0.8px;">Trash</span>
-      <button id="emptyTrashBtn" style="padding:0;font-size:10px;background:none;color:#884444;border:none;cursor:pointer;opacity:0.7;">Clear all</button>
+  <div id="trashSection" style="display:none;background:#1e1e1e;border:1px solid #333;border-radius:6px;overflow:hidden;margin-top:8px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid #333;">
+      <span style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:#888;">Trash</span>
+      <button id="emptyTrashBtn" style="padding:0;font-size:9px;background:none;color:#884444;border:none;cursor:pointer;">Clear all</button>
     </div>
-    <div id="trashList" style="display:flex;flex-direction:column;gap:2px;"></div>
+    <div id="trashList" style="display:flex;flex-direction:column;"></div>
   </div>
 </div>
 
@@ -745,6 +745,10 @@
   <div style="display:flex;align-items:center;gap:8px;">
     <input type="checkbox" id="printViewCheck" style="accent-color:#D4A853;width:14px;height:14px;cursor:pointer;">
     <label for="printViewCheck" style="margin:0;cursor:pointer;font-size:12px;color:#ccc;text-transform:none;letter-spacing:0;">Export Print View (PDF)</label>
+  </div>
+  <div style="display:flex;gap:6px;margin-top:4px;">
+    <button id="renumberPagesBtn" style="flex:1;padding:4px 8px;font-size:10px;background:#2a2a2a;color:#bbb;border:1px solid #333;border-radius:4px;cursor:pointer;">Renumber Pages</button>
+    <button id="stripPageNumsBtn" style="flex:1;padding:4px 8px;font-size:10px;background:#2a2a2a;color:#884444;border:1px solid #333;border-radius:4px;cursor:pointer;">Strip Page #s</button>
   </div>
 </div>
 
@@ -1825,6 +1829,13 @@ function unlockPlugin() {
 // Check if previously unlocked
 parent.postMessage({ pluginMessage: { type: 'checkUnlock' } }, '*');
 
+document.getElementById('renumberPagesBtn').addEventListener('click', function () {
+  parent.postMessage({ pluginMessage: { type: 'renumberPages' } }, '*');
+});
+document.getElementById('stripPageNumsBtn').addEventListener('click', function () {
+  parent.postMessage({ pluginMessage: { type: 'stripPageNumbers' } }, '*');
+});
+
 buildBtn.addEventListener('click', async function () {
   var courseId = courseSelect.value;
   var val = sessionSelect.value;
@@ -2267,34 +2278,35 @@ function updateTrashUI(items) {
   section.style.display = 'block';
   items.forEach(function (item) {
     var row = document.createElement('div');
-    row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:4px 0;';
-    var info = document.createElement('div');
-    info.style.cssText = 'flex:1;min-width:0;display:flex;align-items:baseline;gap:6px;';
+    row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:6px 12px;border-bottom:1px solid #252525;transition:background 0.1s;cursor:default;';
+    row.onmouseenter = function () { row.style.background = '#2a2a2a'; };
+    row.onmouseleave = function () { row.style.background = ''; };
+    var left = document.createElement('div');
+    left.style.cssText = 'display:flex;align-items:center;gap:6px;min-width:0;flex:1;';
     var dot = document.createElement('span');
-    dot.style.cssText = 'width:6px;height:6px;border-radius:50%;background:#884444;flex-shrink:0;';
-    var nameEl = document.createElement('div');
-    nameEl.style.cssText = 'min-width:0;';
-    var titleSpan = document.createElement('span');
-    titleSpan.style.cssText = 'font-size:11px;color:#bbb;';
-    // Clean name: remove [TYPE] prefix, show just "S2 · 17 — Title"
-    titleSpan.textContent = item.name.replace(/^\[.*?\]\s*/, '');
-    nameEl.appendChild(titleSpan);
+    dot.style.cssText = 'width:5px;height:5px;border-radius:50%;background:#884444;flex-shrink:0;';
+    var textWrap = document.createElement('div');
+    textWrap.style.cssText = 'min-width:0;';
+    var text = document.createElement('span');
+    text.style.cssText = 'font-size:10px;color:#bbb;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+    text.textContent = item.name.replace(/^\[.*?\]\s*/, '');
+    textWrap.appendChild(text);
     if (item.date) {
-      var dateSpan = document.createElement('div');
-      dateSpan.style.cssText = 'font-size:9px;color:#555;margin-top:1px;';
-      dateSpan.textContent = 'Deleted ' + item.date;
-      nameEl.appendChild(dateSpan);
+      var ts = document.createElement('span');
+      ts.style.cssText = 'font-size:9px;color:#555;display:block;';
+      ts.textContent = 'Deleted ' + item.date;
+      textWrap.appendChild(ts);
     }
-    info.appendChild(dot);
-    info.appendChild(nameEl);
-    var btn = document.createElement('button');
-    btn.style.cssText = 'flex-shrink:0;padding:0;font-size:10px;background:none;color:#7a9f7a;border:none;cursor:pointer;';
-    btn.textContent = 'Restore';
-    btn.addEventListener('click', function () {
+    left.appendChild(dot);
+    left.appendChild(textWrap);
+    row.appendChild(left);
+    var restoreLink = document.createElement('span');
+    restoreLink.style.cssText = 'font-size:10px;color:#7070c8;flex-shrink:0;cursor:pointer;';
+    restoreLink.textContent = 'Restore';
+    restoreLink.onclick = function () {
       parent.postMessage({ pluginMessage: { type: 'recoverSlide', trashId: item.id } }, '*');
-    });
-    row.appendChild(info);
-    row.appendChild(btn);
+    };
+    row.appendChild(restoreLink);
     list.appendChild(row);
   });
   setTimeout(resizeUI, 20);
