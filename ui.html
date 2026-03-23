@@ -537,6 +537,9 @@
     <button id="editRevertBtn" style="background:#333;color:#c87070;flex:0 0 auto;padding:10px 14px;display:none;">Revert</button>
     <button id="editUpdateBtn" style="background:#D4A853;color:#1a1400;">Update Slide</button>
   </div>
+  <div class="actions" style="margin-top:4px;">
+    <button id="rebuildFromSourceBtn" style="flex:1;padding:8px;font-size:11px;background:#2a2a2a;color:#bbb;border:1px solid #333;border-radius:4px;cursor:pointer;">Rebuild from Source</button>
+  </div>
   <!-- Trash section -->
   </div><!-- /editContent -->
 
@@ -2201,6 +2204,32 @@ editRevertBtn.addEventListener('click', function () {
     colors: getColorValues(),
     fontConfig: getFontConfig()
   }}, '*');
+});
+
+document.getElementById('rebuildFromSourceBtn').addEventListener('click', async function () {
+  if (!hasEditData) return;
+  var btn = this;
+  btn.textContent = 'Rebuilding...';
+  btn.disabled = true;
+  var origSlide = await findOriginalSlideAsync(editState.sessionNum, editState.slideNum);
+  if (!origSlide) {
+    editStatus.textContent = 'Source data not found for this slide.';
+    editStatus.style.color = '#c87070';
+    btn.textContent = 'Rebuild from Source';
+    btn.disabled = false;
+    return;
+  }
+  // Clear any override so it rebuilds fresh from source
+  parent.postMessage({ pluginMessage: { type: 'clearOverride', sessionNum: editState.sessionNum, slideNum: editState.slideNum } }, '*');
+  // Rebuild using the revert flow which replaces the frame with source data
+  parent.postMessage({ pluginMessage: {
+    type: 'revertSlide',
+    originalSlide: origSlide,
+    colors: getColorValues(),
+    fontConfig: getFontConfig()
+  }}, '*');
+  btn.textContent = 'Rebuild from Source';
+  btn.disabled = false;
 });
 
 document.getElementById('commitBtnEdit').addEventListener('click', function () {

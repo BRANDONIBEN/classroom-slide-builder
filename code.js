@@ -2205,10 +2205,8 @@ function buildListSlide(frame, slide) {
     return '\u2014  ' + item.text;  // em dash for top-level
   }).join('\n');
 
-  // Scale font size based on total text length and item count
-  var itemCount = items.length;
-  var totalChars = formatted.length;
-  var sz = itemCount <= 3 ? 28 : itemCount <= 5 ? 26 : itemCount <= 7 ? 24 : totalChars > 500 ? 20 : 22;
+  // Use the same bodySize scaling as other slide types
+  var sz = slide._groupSize || bodySize(formatted);
 
   var listNode = addText(frame, formatted, {
     x: SIDE_MARGIN + 40,
