@@ -303,6 +303,12 @@ figma.ui.onmessage = async function (msg) {
       var x = oldFrame ? oldFrame.x : msg.frameX;
       var y = oldFrame ? oldFrame.y : msg.frameY;
       var parentNode = oldFrame ? oldFrame.parent : figma.currentPage;
+      // Extract page number from original frame before removing
+      var existingPageNum = null;
+      if (oldFrame) {
+        var pgNode = oldFrame.findOne(function (n) { return n.name === '[PAGE_NUM]'; });
+        if (pgNode && pgNode.type === 'TEXT') existingPageNum = pgNode.characters;
+      }
       if (oldFrame) oldFrame.remove();
 
       // Build replacement slide — rawEdit skips ensurePeriod so user controls punctuation
@@ -316,7 +322,8 @@ figma.ui.onmessage = async function (msg) {
         _courseName: msg.courseName || '',
         _sessionLabel: msg.sessionLabel || '',
         _rawEdit: true,
-        imageRef: msg.imageRef || ''
+        imageRef: msg.imageRef || '',
+        _pageNum: existingPageNum ? parseInt(existingPageNum) : null
       };
       var newFrame = buildFrame(slide, x, y);
       parentNode.appendChild(newFrame);
@@ -792,6 +799,15 @@ figma.ui.onmessage = async function (msg) {
       var clone = trashFrame.clone();
       var origX = parseInt(trashFrame.getPluginData('_trash_x') || '0');
       var origY = parseInt(trashFrame.getPluginData('_trash_y') || '0');
+      var SPACING = W + 80;
+
+      // Shift any slide at or after the restore position to the right
+      figma.currentPage.children.forEach(function (child) {
+        if (child.type === 'FRAME' && child.width === W && child.height === H && child.x >= origX && child.name !== '[PREVIEW]') {
+          child.x += SPACING;
+        }
+      });
+
       clone.x = origX;
       clone.y = origY;
       // Clear trash metadata
