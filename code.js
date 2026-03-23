@@ -450,9 +450,11 @@ figma.ui.onmessage = async function (msg) {
       clearSlideOverride(sNum, slNum);
       var vKey = overrideKey(sNum, slNum) + '_versions';
       figma.root.setPluginData(vKey, '[]');
-      // Extract footer from current frame before rebuild
+      // Extract footer from current frame before rebuild (skip page number node)
       var revertCourse = '', revertSession = '';
+      var existingPageNum = null;
       frame.findAll(function (n) { return n.type === 'TEXT'; }).forEach(function (t) {
+        if (t.name === '[PAGE_NUM]') { existingPageNum = parseInt(t.characters); return; }
         if (t.y > 950) {
           if (t.x < 960) revertCourse = t.characters;
           else revertSession = t.characters;
@@ -475,6 +477,7 @@ figma.ui.onmessage = async function (msg) {
         var slide = msg.originalSlide;
         slide._courseName = revertCourse;
         slide._sessionLabel = revertSession;
+        slide._pageNum = existingPageNum;
         var newFrame = buildFrame(slide, x, y);
         parentNode.appendChild(newFrame);
         figma.currentPage.selection = [newFrame];
