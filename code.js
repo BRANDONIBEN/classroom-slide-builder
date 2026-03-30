@@ -220,68 +220,63 @@ figma.on('close', function () {
 });
 
 figma.ui.onmessage = async function (msg) {
+  console.log('[PLUGIN MSG]', msg.type, msg.exportPrintView ? '(PRINT ON)' : '');
   if (msg.type === 'build') {
+    // Phase 1: Build slides
     try {
       if (msg.colors) applyCustomColors(msg.colors);
       if (msg.fontConfig) await applyFontConfig(msg.fontConfig);
       var logoData = msg.logoData || { svg: null, bgColor: null };
       await buildSlides(msg.slides, msg.sessionNum, msg.sessionName, msg.courseName, logoData, msg.totalSessions || 0, msg.includePageNumbers || false);
-      if (msg.exportPrintView) {
-        console.log('[PRINT] exportPrintView enabled — creating print page from:', figma.currentPage.name, '(' + figma.currentPage.children.length + ' children)');
-        await loadAllFonts();
-        try {
-          var printPage = await createPrintPage(figma.currentPage);
-          console.log('[PRINT] Print page created:', printPage.name, '(' + printPage.children.length + ' slides)');
-          figma.currentPage = printPage;
-          figma.ui.postMessage({ type: 'printPagesReady' });
-        } catch (printErr) {
-          console.error('[PRINT] Error creating print page:', String(printErr));
-          figma.ui.postMessage({ type: 'error', message: 'Print page error: ' + String(printErr) });
-        }
-      }
     } catch (err) {
+      console.error('[PLUGIN] build error:', String(err));
       figma.ui.postMessage({ type: 'error', message: String(err) });
+    }
+    // Phase 2: Generate print page (runs even if build had non-fatal errors)
+    if (msg.exportPrintView) {
+      try {
+        await loadAllFonts();
+        var printPage = await createPrintPage(figma.currentPage);
+        figma.currentPage = printPage;
+        figma.ui.postMessage({ type: 'printPagesReady' });
+      } catch (printErr) {
+        console.error('[PRINT] Error:', String(printErr));
+        figma.ui.postMessage({ type: 'error', message: 'Print page error: ' + String(printErr) });
+      }
     }
   }
   if (msg.type === 'buildAll') {
+    // Phase 1: Build all session pages
     try {
-      console.log('[PLUGIN] buildAll received:', msg.sessionGroups ? msg.sessionGroups.length : 0, 'groups,', msg.totalSessions, 'totalSessions');
-      if (msg.sessionGroups) {
-        for (var gi = 0; gi < msg.sessionGroups.length; gi++) {
-          console.log('[PLUGIN]   Group', gi, ': S' + msg.sessionGroups[gi].sessionNum, '(' + msg.sessionGroups[gi].slides.length + ' slides)');
-        }
-      }
       if (msg.colors) applyCustomColors(msg.colors);
       if (msg.fontConfig) await applyFontConfig(msg.fontConfig);
       var logoData = msg.logoData || { svg: null, bgColor: null };
       await buildAllSessions(msg.sessionGroups, msg.courseName, logoData, msg.totalSessions || 0, msg.includePageNumbers || false);
-      if (msg.exportPrintView) {
+    } catch (err) {
+      console.error('[PLUGIN] buildAll error:', String(err));
+      figma.ui.postMessage({ type: 'error', message: String(err) });
+    }
+    // Phase 2: Generate print pages (runs even if build had non-fatal errors)
+    if (msg.exportPrintView) {
+      try {
         await loadAllFonts();
         var allPages = figma.root.children.slice();
         var lastPrintPage = null;
-        console.log('[PRINT] buildAll: exportPrintView enabled, courseName="' + msg.courseName + '", scanning ' + allPages.length + ' pages');
         for (var pi = 0; pi < allPages.length; pi++) {
-          console.log('[PRINT]   Page ' + pi + ': "' + allPages[pi].name + '"');
-          if (allPages[pi].name.indexOf('[PRINT]') !== 0 && allPages[pi].name.indexOf('[TRASH]') !== 0 && allPages[pi].name.indexOf('[STORAGE]') !== 0) {
-            if (msg.courseName && allPages[pi].name.indexOf(msg.courseName) === 0) {
-              console.log('[PRINT]   → Match! Creating print page for: "' + allPages[pi].name + '" (' + allPages[pi].children.length + ' children)');
-              try {
-                lastPrintPage = await createPrintPage(allPages[pi]);
-                console.log('[PRINT]   → Print page created: "' + lastPrintPage.name + '" (' + lastPrintPage.children.length + ' slides)');
-              } catch (printErr) {
-                console.error('[PRINT]   → Error:', String(printErr));
-                figma.ui.postMessage({ type: 'error', message: 'Print page error: ' + String(printErr) });
-              }
-            }
+          var pgName = allPages[pi].name;
+          if (pgName.indexOf('[PRINT]') === 0 || pgName.indexOf('[TRASH]') === 0 || pgName.indexOf('[STORAGE]') === 0) continue;
+          if (msg.courseName && pgName.indexOf(msg.courseName) === 0) {
+            lastPrintPage = await createPrintPage(allPages[pi]);
           }
         }
         if (lastPrintPage) {
           figma.currentPage = lastPrintPage;
         }
         figma.ui.postMessage({ type: 'printPagesReady' });
+      } catch (printErr) {
+        console.error('[PRINT] Error:', String(printErr));
+        figma.ui.postMessage({ type: 'error', message: 'Print page error: ' + String(printErr) });
       }
-    } catch (err) {
-      figma.ui.postMessage({ type: 'error', message: String(err) });
     }
   }
   if (msg.type === 'updateSlide') {
