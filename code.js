@@ -227,10 +227,17 @@ figma.ui.onmessage = async function (msg) {
       var logoData = msg.logoData || { svg: null, bgColor: null };
       await buildSlides(msg.slides, msg.sessionNum, msg.sessionName, msg.courseName, logoData, msg.totalSessions || 0, msg.includePageNumbers || false);
       if (msg.exportPrintView) {
+        console.log('[PRINT] exportPrintView enabled — creating print page from:', figma.currentPage.name, '(' + figma.currentPage.children.length + ' children)');
         await loadAllFonts();
-        var printPage = await createPrintPage(figma.currentPage);
-        figma.currentPage = printPage;
-        figma.ui.postMessage({ type: 'printPagesReady' });
+        try {
+          var printPage = await createPrintPage(figma.currentPage);
+          console.log('[PRINT] Print page created:', printPage.name, '(' + printPage.children.length + ' slides)');
+          figma.currentPage = printPage;
+          figma.ui.postMessage({ type: 'printPagesReady' });
+        } catch (printErr) {
+          console.error('[PRINT] Error creating print page:', String(printErr));
+          figma.ui.postMessage({ type: 'error', message: 'Print page error: ' + String(printErr) });
+        }
       }
     } catch (err) {
       figma.ui.postMessage({ type: 'error', message: String(err) });
@@ -252,10 +259,19 @@ figma.ui.onmessage = async function (msg) {
         await loadAllFonts();
         var allPages = figma.root.children.slice();
         var lastPrintPage = null;
+        console.log('[PRINT] buildAll: exportPrintView enabled, courseName="' + msg.courseName + '", scanning ' + allPages.length + ' pages');
         for (var pi = 0; pi < allPages.length; pi++) {
+          console.log('[PRINT]   Page ' + pi + ': "' + allPages[pi].name + '"');
           if (allPages[pi].name.indexOf('[PRINT]') !== 0 && allPages[pi].name.indexOf('[TRASH]') !== 0 && allPages[pi].name.indexOf('[STORAGE]') !== 0) {
             if (msg.courseName && allPages[pi].name.indexOf(msg.courseName) === 0) {
-              lastPrintPage = await createPrintPage(allPages[pi]);
+              console.log('[PRINT]   → Match! Creating print page for: "' + allPages[pi].name + '" (' + allPages[pi].children.length + ' children)');
+              try {
+                lastPrintPage = await createPrintPage(allPages[pi]);
+                console.log('[PRINT]   → Print page created: "' + lastPrintPage.name + '" (' + lastPrintPage.children.length + ' slides)');
+              } catch (printErr) {
+                console.error('[PRINT]   → Error:', String(printErr));
+                figma.ui.postMessage({ type: 'error', message: 'Print page error: ' + String(printErr) });
+              }
             }
           }
         }
@@ -1662,16 +1678,19 @@ function cleanAttribution(attr) {
 // ============================================================
 
 async function createPrintPage(sourcePage) {
+  console.log('[PRINT] createPrintPage called for: "' + sourcePage.name + '" with ' + sourcePage.children.length + ' children');
   var printPage = figma.createPage();
   printPage.name = '[PRINT] ' + sourcePage.name;
   printPage.backgrounds = [{ type: 'SOLID', color: { r: 0.961, g: 0.961, b: 0.961 } }];
 
   var slideFrames = [];
   sourcePage.children.forEach(function (child) {
+    console.log('[PRINT]   child: type=' + child.type + ' name="' + child.name + '" w=' + child.width + ' h=' + child.height);
     if (child.type === 'FRAME' && child.width === 1920 && child.height === 1080) {
       slideFrames.push(child);
     }
   });
+  console.log('[PRINT] Found ' + slideFrames.length + ' matching frames');
   slideFrames.sort(function (a, b) { return a.x - b.x; });
 
   for (var i = 0; i < slideFrames.length; i++) {
@@ -1790,7 +1809,7 @@ async function buildSlides(slides, sessionNum, sessionName, courseName, logoData
     // Page numbers: cover is page 1 (no number), content slides start at page 2
     if (includePageNumbers) slide._pageNum = index + 2;
     var x = (index + 1) * (W + 80);
-    var frame = buildOrCloneFrame(slide, x, 0);
+    var frame = await buildOrCloneFrame(slide, x, 0);
     page.appendChild(frame);
     builtCount++;
   }
@@ -1866,7 +1885,7 @@ async function buildAllSessions(sessionGroups, courseName, logoData, totalSessio
         slide._sessionLabel = sessionName;
         if (includePageNumbers) slide._pageNum = index + 2;
         var x = (index + 1) * (W + 80);
-        var frame = buildOrCloneFrame(slide, x, 0);
+        var frame = await buildOrCloneFrame(slide, x, 0);
         page.appendChild(frame);
       }
 
