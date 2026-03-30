@@ -5,18 +5,54 @@
       "name": "Essential Theology",
       "file": "et_text.json",
       "sessions": [
-        { "num": 1,  "label": "Introduction to Essential Theology" },
-        { "num": 2,  "label": "The Trinity" },
-        { "num": 3,  "label": "Attributes of God" },
-        { "num": 4,  "label": "Bibliology" },
-        { "num": 5,  "label": "Humanity + Sin" },
-        { "num": 6,  "label": "Jesus, Part 1" },
-        { "num": 7,  "label": "Jesus, Part 2" },
-        { "num": 8,  "label": "Salvation, Part 1" },
-        { "num": 9,  "label": "Salvation, Part 2" },
-        { "num": 10, "label": "Sanctification" },
-        { "num": 11, "label": "The Church" },
-        { "num": 12, "label": "Eschatology" }
+        {
+          "num": 1,
+          "label": "Introduction to Essential Theology"
+        },
+        {
+          "num": 2,
+          "label": "The Trinity"
+        },
+        {
+          "num": 3,
+          "label": "Attributes of God"
+        },
+        {
+          "num": 4,
+          "label": "Bibliology"
+        },
+        {
+          "num": 5,
+          "label": "Humanity + Sin"
+        },
+        {
+          "num": 6,
+          "label": "Jesus, Part 1"
+        },
+        {
+          "num": 7,
+          "label": "Jesus, Part 2"
+        },
+        {
+          "num": 8,
+          "label": "Salvation, Part 1"
+        },
+        {
+          "num": 9,
+          "label": "Salvation, Part 2"
+        },
+        {
+          "num": 10,
+          "label": "Sanctification"
+        },
+        {
+          "num": 11,
+          "label": "The Church"
+        },
+        {
+          "num": 12,
+          "label": "Eschatology"
+        }
       ]
     },
     {
@@ -24,23 +60,74 @@
       "name": "Scripture Narrative",
       "file": "sn_text.json",
       "sessions": [
-        { "num": 1,  "label": "Set Up + Structure of Scripture" },
-        { "num": 2,  "label": "Creation + Fall" },
-        { "num": 3,  "label": "Covenants + Law" },
-        { "num": 4,  "label": "Covenant Consequences, Part 1" },
-        { "num": 5,  "label": "Covenant Consequences, Part 2" },
-        { "num": 6,  "label": "Covenant Worship" },
-        { "num": 7,  "label": "United and Divided Kingdom, Part 1" },
-        { "num": 8,  "label": "United and Divided Kingdom, Part 2" },
-        { "num": 9,  "label": "Major + Minor Prophets" },
-        { "num": 10, "label": "A Return + a New Covenant" },
-        { "num": 11, "label": "Gospels Part 1" },
-        { "num": 12, "label": "Gospels Part 2" },
-        { "num": 13, "label": "Acts" },
-        { "num": 14, "label": "Pauline Epistles" },
-        { "num": 15, "label": "Hebrews" },
-        { "num": 16, "label": "Revelation" },
-        { "num": 17, "label": "The Whole Story" }
+        {
+          "num": 1,
+          "label": "Set Up + Structure of Scripture"
+        },
+        {
+          "num": 2,
+          "label": "Creation + Fall"
+        },
+        {
+          "num": 3,
+          "label": "Covenants + Law"
+        },
+        {
+          "num": 4,
+          "label": "Covenant Consequences, Part 1"
+        },
+        {
+          "num": 5,
+          "label": "Covenant Consequences, Part 2"
+        },
+        {
+          "num": 6,
+          "label": "Covenant Worship"
+        },
+        {
+          "num": 7,
+          "label": "United and Divided Kingdom, Part 1"
+        },
+        {
+          "num": 8,
+          "label": "United and Divided Kingdom, Part 2"
+        },
+        {
+          "num": 9,
+          "label": "Major + Minor Prophets"
+        },
+        {
+          "num": 10,
+          "label": "A Return + a New Covenant"
+        },
+        {
+          "num": 11,
+          "label": "Gospels Part 1"
+        },
+        {
+          "num": 12,
+          "label": "Gospels Part 2"
+        },
+        {
+          "num": 13,
+          "label": "Acts"
+        },
+        {
+          "num": 14,
+          "label": "Pauline Epistles"
+        },
+        {
+          "num": 15,
+          "label": "Hebrews"
+        },
+        {
+          "num": 16,
+          "label": "Revelation"
+        },
+        {
+          "num": 17,
+          "label": "The Whole Story"
+        }
       ]
     },
     {
@@ -48,15 +135,42 @@
       "name": "Biblical Finances",
       "file": "bf_text.json",
       "sessions": [
-        { "num": 1, "label": "Introduction + The Reality of Wealth" },
-        { "num": 2, "label": "The Mindset of Biblical Finances" },
-        { "num": 3, "label": "Serving, Spending, Debt" },
-        { "num": 4, "label": "Step #1 - Giving Generously" },
-        { "num": 5, "label": "Step #2 - Save Wisely" },
-        { "num": 6, "label": "Needs, Wants, and Budgets" },
-        { "num": 7, "label": "Step #3 - Living Contentedly" },
-        { "num": 8, "label": "Scriptural Examples" },
-        { "num": 9, "label": "Living for the Line & The Love of Money" }
+        {
+          "num": 1,
+          "label": "Introduction + The Reality of Wealth"
+        },
+        {
+          "num": 2,
+          "label": "The Mindset of Biblical Finances"
+        },
+        {
+          "num": 3,
+          "label": "Serving, Spending, Debt"
+        },
+        {
+          "num": 4,
+          "label": "Step #1 - Giving Generously"
+        },
+        {
+          "num": 5,
+          "label": "Step #2 - Save Wisely"
+        },
+        {
+          "num": 6,
+          "label": "Needs, Wants, and Budgets"
+        },
+        {
+          "num": 7,
+          "label": "Step #3 - Living Contentedly"
+        },
+        {
+          "num": 8,
+          "label": "Scriptural Examples"
+        },
+        {
+          "num": 9,
+          "label": "Living for the Line & The Love of Money"
+        }
       ]
     }
   ]
