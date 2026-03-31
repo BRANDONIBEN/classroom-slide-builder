@@ -2724,6 +2724,140 @@ function renderIllustrationPlaceholder(frame, x, y, w, h) {
 
 function buildTableSlide(frame, slide) {
   var rawBody = slide.body || '';
+
+  // ── Pipe-delimited text table path ──
+  // Detected when majority of lines contain | separators
+  var pipeLines = rawBody.split('\n').filter(function (l) { return l.trim().length > 0; });
+  var pipeCount = pipeLines.filter(function (l) { return l.indexOf('|') !== -1; }).length;
+  if (pipeCount >= 2 && pipeCount >= Math.floor(pipeLines.length * 0.5)) {
+    // Parse pipe rows
+    var tableRows = pipeLines.map(function (l) {
+      return l.split('|').map(function (c) { return c.trim(); }).filter(function (c, ci, arr) {
+        // Remove empty first/last from leading/trailing pipes
+        return !(ci === 0 && c === '') && !(ci === arr.length - 1 && c === '');
+      });
+    });
+    var numCols = tableRows.reduce(function (mx, r) { return Math.max(mx, r.length); }, 0);
+    if (numCols < 2) numCols = 2;
+
+    var TABLE_W = 1560;
+    var TABLE_X = (W - TABLE_W) / 2;
+    var HEADER_H = 50;
+    var LINE_THICK = 1.5;
+    var CELL_PAD_X = 16;
+    var CELL_PAD_Y = 10;
+    var HEADER_SIZE = 18;
+    var TEXT_SIZE = 19;
+
+    // Title
+    var titleY = CONTENT_TOP + 10;
+    if (slide.title) {
+      addText(frame, slide.title, {
+        x: SIDE_MARGIN, y: titleY, w: CONTENT_W, h: 44,
+        size: TITLE_SIZE, color: COLORS.textPrimary, align: 'CENTER', font: 'sans'
+      });
+    }
+    var tableTop = slide.title ? titleY + 56 : CONTENT_TOP + 10;
+
+    // Row heights — estimate based on longest cell in each row
+    var colW = Math.floor(TABLE_W / numCols);
+    var charsPerCell = Math.floor((colW - CELL_PAD_X * 2) / (TEXT_SIZE * 0.52));
+    var rowHeights = tableRows.map(function (row, ri) {
+      var maxLines = 1;
+      row.forEach(function (cell) {
+        var lines = Math.ceil(cell.length / Math.max(charsPerCell, 5)) || 1;
+        if (lines > maxLines) maxLines = lines;
+      });
+      var h = (ri === 0 ? HEADER_H : Math.max(50, maxLines * (TEXT_SIZE * 1.5) + CELL_PAD_Y * 2));
+      return h;
+    });
+    var totalH = rowHeights.reduce(function (s, h) { return s + h; }, 0);
+    var availH = FOOTER_Y - tableTop - 10;
+    // Scale if needed
+    if (totalH > availH) {
+      var scale = availH / totalH;
+      rowHeights = rowHeights.map(function (h) { return Math.max(36, Math.round(h * scale)); });
+      totalH = rowHeights.reduce(function (s, h) { return s + h; }, 0);
+    }
+    // Center vertically
+    var tableStartY = tableTop + Math.round((availH - totalH) / 2);
+    if (tableStartY < tableTop) tableStartY = tableTop;
+
+    // Draw rows
+    var curY = tableStartY;
+    for (var ri = 0; ri < tableRows.length; ri++) {
+      var row = tableRows[ri];
+      var isHeader = ri === 0;
+      var rh = rowHeights[ri];
+
+      // Row background for header
+      if (isHeader) {
+        var headerBg = figma.createRectangle();
+        headerBg.resize(TABLE_W, rh);
+        headerBg.x = TABLE_X;
+        headerBg.y = curY;
+        headerBg.fills = [{ type: 'SOLID', color: COLORS.textPrimary, opacity: 0.08 }];
+        frame.appendChild(headerBg);
+      }
+
+      // Top border
+      var topLine = figma.createRectangle();
+      topLine.resize(TABLE_W, LINE_THICK);
+      topLine.x = TABLE_X;
+      topLine.y = curY;
+      topLine.fills = [{ type: 'SOLID', color: COLORS.textPrimary, opacity: 0.25 }];
+      frame.appendChild(topLine);
+
+      // Cells
+      for (var ci = 0; ci < numCols; ci++) {
+        var cellText = row[ci] || '';
+        var cellX = TABLE_X + ci * colW;
+        var textColor = isHeader ? COLORS.textPrimary : COLORS.textPrimary;
+        var textOpacity = isHeader ? 0.9 : 0.85;
+        var cellFont = isHeader ? 'sans' : 'serif';
+        var cellSize = isHeader ? HEADER_SIZE : TEXT_SIZE;
+        // First col of non-header rows is a label — use sans font
+        if (!isHeader && ci === 0) { cellFont = 'sans'; textOpacity = 0.6; }
+
+        addText(frame, cellText, {
+          x: cellX + CELL_PAD_X,
+          y: curY + CELL_PAD_Y,
+          w: colW - CELL_PAD_X * 2,
+          h: rh - CELL_PAD_Y * 2,
+          size: cellSize,
+          color: textColor,
+          opacity: textOpacity,
+          align: isHeader ? 'CENTER' : (ci === 0 ? 'LEFT' : 'LEFT'),
+          font: cellFont,
+          weight: isHeader ? 'MEDIUM' : 'REGULAR'
+        });
+
+        // Vertical divider (except after last col)
+        if (ci < numCols - 1) {
+          var vLine = figma.createRectangle();
+          vLine.resize(LINE_THICK, rh);
+          vLine.x = cellX + colW;
+          vLine.y = curY;
+          vLine.fills = [{ type: 'SOLID', color: COLORS.textPrimary, opacity: 0.15 }];
+          frame.appendChild(vLine);
+        }
+      }
+      curY += rh;
+    }
+
+    // Bottom border
+    var botLine = figma.createRectangle();
+    botLine.resize(TABLE_W, LINE_THICK);
+    botLine.x = TABLE_X;
+    botLine.y = curY;
+    botLine.fills = [{ type: 'SOLID', color: COLORS.textPrimary, opacity: 0.25 }];
+    frame.appendChild(botLine);
+
+    // Footer
+    addFooter(frame, slide._courseName || '', slide._sessionLabel || '');
+    return;
+  }
+
   var lines = rawBody.split('\n').map(function (l) { return l.trim(); });
 
   // Filter out stray page numbers and empties

@@ -1301,8 +1301,10 @@ function parseSlides(lines, courseId) {
     if (/^Static\s*(Graphic|Slide)/i.test(t)) return 'graphic';
     // Illustration/image slide
     if (/^ILLUSTRATION/i.test(t) || /^IMAGE/i.test(t) || /^ILLUSTRATION/i.test(b)) return 'illustration';
-    // Chart/illustration placeholder
-    if (/^CHART/i.test(t) || /^CHART/i.test(b)) return 'chart';
+    // Chart/illustration placeholder — but pipe-delimited body means it's a real table
+    if ((/^CHART/i.test(t) || /^CHART/i.test(b)) && b.indexOf('|') === -1) return 'chart';
+    // Pipe-delimited body = text-cell table
+    if (b.indexOf('|') !== -1 && (b.match(/\|/g) || []).length >= 4) return 'table';
     // Quote detection BEFORE table — quoted text is always a quote, even with verse refs
     if (/^[\u201C\u2018"]/.test(b)) return 'quote';
     // Table/comparison slide — look for header pattern + verse references as data
