@@ -652,7 +652,6 @@ figma.ui.onmessage = async function (msg) {
   if (msg.type === 'previewSlide') {
     try {
       await loadAllFonts();
-      if (msg.colors) applyCustomColors(msg.colors);
       if (msg.fontConfig) await applyFontConfig(msg.fontConfig);
 
       // Remove any existing preview frame
@@ -661,7 +660,7 @@ figma.ui.onmessage = async function (msg) {
       });
       if (oldPreview) oldPreview.remove();
 
-      // Find original frame to extract page number
+      // Find original frame to extract page number and actual colors
       var origPageNum = null;
       var origFrame = figma.currentPage.findOne(function (n) {
         return n.type === 'FRAME' && n.width === W && n.height === H && n.x === msg.frameX && Math.abs(n.y - msg.frameY) < 5 && n.name !== '[PREVIEW]';
@@ -669,26 +668,68 @@ figma.ui.onmessage = async function (msg) {
       if (origFrame) {
         var pgn = origFrame.findOne(function (n) { return n.name === '[PAGE_NUM]'; });
         if (pgn && pgn.type === 'TEXT') origPageNum = parseInt(pgn.characters);
+        // Extract actual colors from the built slide rather than relying on UI pickers
+        if (origFrame.fills && origFrame.fills.length > 0 && origFrame.fills[0].type === 'SOLID') {
+          COLORS.bg = origFrame.fills[0].color;
+        }
+        // Extract text colors from the original frame's text nodes
+        var allTextNodes = origFrame.findAll(function (n) { return n.type === 'TEXT'; });
+        // Largest text node is likely the body/title — use its color for primary text
+        var largestText = null;
+        var largestArea = 0;
+        for (var ti = 0; ti < allTextNodes.length; ti++) {
+          var area = allTextNodes[ti].width * allTextNodes[ti].height;
+          if (area > largestArea) { largestArea = area; largestText = allTextNodes[ti]; }
+        }
+        if (largestText && largestText.fills && largestText.fills.length > 0 && largestText.fills[0].type === 'SOLID') {
+          COLORS.textPrimary = largestText.fills[0].color;
+          COLORS.textBody = largestText.fills[0].color;
+        }
+        // Smallest text node is likely footer — use its color
+        var smallestText = null;
+        var smallestArea = Infinity;
+        for (var si = 0; si < allTextNodes.length; si++) {
+          if (allTextNodes[si].name === '[PAGE_NUM]') continue;
+          var sArea = allTextNodes[si].width * allTextNodes[si].height;
+          if (sArea < smallestArea) { smallestArea = sArea; smallestText = allTextNodes[si]; }
+        }
+        if (smallestText && smallestText.fills && smallestText.fills.length > 0 && smallestText.fills[0].type === 'SOLID') {
+          COLORS.textFaint = smallestText.fills[0].color;
+        }
+      } else if (msg.colors) {
+        // Fallback to UI color pickers if original frame not found
+        applyCustomColors(msg.colors);
       }
 
       // Build preview below the original frame
-      var slide = {
-        type: msg.slideType,
-        title: msg.title,
-        body: msg.body,
-        attribution: msg.attribution || '',
-        sessionNum: msg.sessionNum,
-        number: msg.slideNum,
-        _courseName: msg.courseName || '',
-        _sessionLabel: msg.sessionLabel || '',
-        _rawEdit: true,
-        imageRef: msg.imageRef || '',
-        _pageNum: origPageNum
-      };
-      var previewFrame = buildFrame(slide, msg.frameX, msg.frameY + 1080 + 60);
+      var previewFrame;
+      // If original frame has a design override, clone it exactly for the preview
+      // Don't try to update text — heuristic matching is too fragile
+      var hasDesignOverride = origFrame && getSlideOverride(msg.sessionNum, msg.slideNum);
+      if (hasDesignOverride && hasDesignOverride.mode === 'design' && origFrame) {
+        previewFrame = origFrame.clone();
+        previewFrame.x = msg.frameX;
+        previewFrame.y = msg.frameY + 1080 + 60;
+        figma.currentPage.appendChild(previewFrame);
+      } else {
+        var slide = {
+          type: msg.slideType,
+          title: msg.title,
+          body: msg.body,
+          attribution: msg.attribution || '',
+          sessionNum: msg.sessionNum,
+          number: msg.slideNum,
+          _courseName: msg.courseName || '',
+          _sessionLabel: msg.sessionLabel || '',
+          _rawEdit: true,
+          imageRef: msg.imageRef || '',
+          _pageNum: origPageNum
+        };
+        previewFrame = buildFrame(slide, msg.frameX, msg.frameY + 1080 + 60);
+        figma.currentPage.appendChild(previewFrame);
+      }
       previewFrame.name = '[PREVIEW]';
       previewFrame.opacity = 0.85;
-      figma.currentPage.appendChild(previewFrame);
     } catch (err) {
       console.error('Preview error:', err);
       figma.ui.postMessage({ type: 'previewError', message: String(err) });
@@ -1408,6 +1449,9 @@ async function buildOrCloneFrame(slide, x, y) {
         // If no page number node exists, it will be added by the caller if needed
       }
       return clone;
+    } else {
+      console.warn('[BUILD] ⚠ Design override for S' + slide.sessionNum + ':' + slide.number + ' references missing node ' + override.committedNodeId + ' — building default slide');
+      figma.ui.postMessage({ type: 'status', message: '⚠ S' + slide.sessionNum + ':' + slide.number + ' committed design not found — was [STORAGE] page deleted?' });
     }
   }
   // Text override or no override — apply text overrides and build normally
@@ -2108,8 +2152,12 @@ function buildScriptureSlide(frame, slide) {
   var bodyText = slide._rawEdit ? slide.body : polishText(cleanQuote(slide.body));
   var ref = '';
 
+  // Check attribution field first — it's the explicit scripture reference
+  if (slide.attribution && slide.attribution.trim()) {
+    ref = slide._rawEdit ? slide.attribution : polishText(slide.attribution);
+  }
   // If title is already a scripture reference, use it
-  if (slide.title && isScriptureTitle(slide.title)) {
+  else if (slide.title && isScriptureTitle(slide.title)) {
     ref = slide._rawEdit ? slide.title : polishText(slide.title);
   } else {
     // Try to extract a scripture reference from the first line of the body

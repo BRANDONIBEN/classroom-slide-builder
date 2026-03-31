@@ -2541,8 +2541,9 @@ window.onmessage = function (event) {
     editOverrideNote.style.display = 'block';
     updateOverrideBadge(msg.overrideCount);
     triggerAutosave(courseIdFromName(editState.courseName));
-    // Rebuild preview from committed content
-    sendEditPreview();
+    // Remove preview after commit — the committed frame is now the main slide
+    // A mismatched preview below it is confusing; user can re-trigger by editing
+    parent.postMessage({ pluginMessage: { type: 'removePreview' } }, '*');
     return;
   }
 
