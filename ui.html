@@ -2701,11 +2701,11 @@ window.onmessage = function (event) {
     }
     var allParsed = courseId ? getParsedSlides(courseId) : [];
 
-    var csvRows = ['Slide,Title,Timecode,Type'];
+    var csvRows = ['Slide,Timecode'];
     for (var fi = 0; fi < frames.length; fi++) {
       var fr = frames[fi];
       if (fr.isCover) {
-        csvRows.push('Cover,"' + (fr.title || 'Title Slide').replace(/"/g, '""') + '",0:00,cover');
+        csvRows.push('Cover,0:00');
         continue;
       }
       // Match to parsed slide data by session + slide number
@@ -2717,8 +2717,7 @@ window.onmessage = function (event) {
         }
       }
       var tc = matched && matched.timecode ? matched.timecode : '';
-      var title = (fr.title || '').replace(/"/g, '""');
-      csvRows.push((fi) + ',"' + title + '",' + tc + ',' + fr.type);
+      csvRows.push(fi + ',' + tc);
     }
 
     // Show CSV in a copyable textarea (Figma plugin sandbox blocks clipboard + downloads)
