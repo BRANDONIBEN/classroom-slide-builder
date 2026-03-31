@@ -2688,6 +2688,7 @@ window.onmessage = function (event) {
   }
 
   if (msg.type === 'pageFrames') {
+    try {
     // Build timecode CSV from current page frames matched to parsed slide data
     var frames = msg.frames || [];
     var pageName = msg.pageName || 'timecodes';
@@ -2737,6 +2738,12 @@ window.onmessage = function (event) {
       status.parentNode.insertBefore(ta, status.nextSibling);
       ta.select();
     });
+    } catch (err) {
+      var status = document.getElementById('status');
+      status.textContent = 'Error: ' + String(err);
+      status.className = 'status error';
+      console.error('[TIMECODES] Error:', err);
+    }
   }
   if (msg.type === 'pageCharts') {
     var chartDiv = document.getElementById('chartLocators');
