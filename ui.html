@@ -2043,7 +2043,25 @@ function enterEditMode(data) {
 
   setEditType(data.slideType);
   editTitle.value = data.title || '';
-  editBody.value = data.body || '';
+
+  // For table slides, restore the original pipe-delimited body from source data
+  // since frame text extraction loses the pipe format
+  var resolvedBody = data.body || '';
+  if (data.slideType === 'table' && resolvedBody.indexOf('|') === -1 && !data.hasOverride) {
+    var cid = '';
+    for (var ckey in COURSES) { if (COURSES[ckey].name === (data.courseName || '')) { cid = ckey; break; } }
+    if (cid) {
+      var parsedForTable = getParsedSlides(cid);
+      for (var pi = 0; pi < parsedForTable.length; pi++) {
+        var ps = parsedForTable[pi];
+        if (ps.sessionNum === data.sessionNum && ps.number === data.slideNum && ps.body && ps.body.indexOf('|') !== -1) {
+          resolvedBody = ps.body;
+          break;
+        }
+      }
+    }
+  }
+  editBody.value = resolvedBody;
   document.getElementById('editAttribution').value = data.attribution || '';
   document.getElementById('editFooterLeft').value = editState.courseName;
   document.getElementById('editFooterRight').value = editState.sessionLabel;
