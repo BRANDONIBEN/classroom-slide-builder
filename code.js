@@ -2750,14 +2750,13 @@ function buildTableSlide(frame, slide) {
     var TEXT_SIZE = 19;
 
     // Title
-    var titleY = CONTENT_TOP + 10;
     if (slide.title) {
       addText(frame, slide.title, {
-        x: SIDE_MARGIN, y: titleY, w: CONTENT_W, h: 44,
+        x: SIDE_MARGIN, y: LABEL_Y, w: CONTENT_W, h: 40,
         size: TITLE_SIZE, color: COLORS.textPrimary, align: 'CENTER', font: 'sans'
       });
     }
-    var tableTop = slide.title ? titleY + 56 : CONTENT_TOP + 10;
+    var tableTop = CONTENT_TOP;
 
     // Row heights — estimate based on longest cell in each row
     var colW = Math.floor(TABLE_W / numCols);
