@@ -1636,10 +1636,19 @@ function findOriginalSlide(sessionNum, slideNum) {
 
 // Async version that ensures course text is loaded first
 async function findOriginalSlideAsync(sessionNum, slideNum) {
-  var result = findOriginalSlide(sessionNum, slideNum);
-  if (result) return result;
-  // Try loading all course texts
+  // Determine current course from editState footer (courseName = e.g. "Scripture Narrative")
+  var editCourseName = editState.courseName || document.getElementById('editFooterLeft').value || '';
+  var currentCourseId = '';
+  for (var cid in COURSES) {
+    if (COURSES[cid].name === editCourseName) { currentCourseId = cid; break; }
+  }
+
+  // Search current course first to avoid cross-course collisions
   var courseIds = Object.keys(COURSES);
+  if (currentCourseId) {
+    courseIds = [currentCourseId].concat(courseIds.filter(function (id) { return id !== currentCourseId; }));
+  }
+
   for (var i = 0; i < courseIds.length; i++) {
     if (!COURSE_TEXT[courseIds[i]]) {
       await loadRemoteCourseText(courseIds[i]);
@@ -1648,7 +1657,10 @@ async function findOriginalSlideAsync(sessionNum, slideNum) {
     for (var j = 0; j < allParsed.length; j++) {
       if (allParsed[j].sessionNum === sessionNum && allParsed[j].number === slideNum) {
         var cName = COURSES[courseIds[i]] ? COURSES[courseIds[i]].name : '';
-        return { type: allParsed[j].type, title: allParsed[j].title, body: allParsed[j].body, sessionNum: sessionNum, number: slideNum, _courseName: cName, _sessionLabel: allParsed[j].session || '' };
+        // Only return this match if it's the current course, or we have no current course
+        if (!currentCourseId || courseIds[i] === currentCourseId) {
+          return { type: allParsed[j].type, title: allParsed[j].title, body: allParsed[j].body, sessionNum: sessionNum, number: slideNum, _courseName: cName, _sessionLabel: allParsed[j].session || '' };
+        }
       }
     }
   }
