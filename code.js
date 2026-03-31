@@ -150,7 +150,7 @@ function sendSelectionData() {
       var useOverrideText = existing && existing.mode !== 'design' && existing.title;
       figma.ui.postMessage({
         type: 'editSlide',
-        slideType: (useOverrideText ? existing.type : null) || slideType || 'body',
+        slideType: slideType || (useOverrideText ? existing.type : null) || 'body',
         sessionNum: sessionNum,
         slideNum: slideNum,
         title: useOverrideText ? existing.title : title,
@@ -2319,9 +2319,9 @@ function buildListSlide(frame, slide) {
       return num + '.  ' + item.text;
     }
     if (item.sub) {
-      return '       \u2013  ' + item.text;  // indented en dash for sub-items
+      return '       \u25E6  ' + item.text;  // indented hollow bullet for sub-items
     }
-    return '\u2014  ' + item.text;  // em dash for top-level
+    return '\u2022  ' + item.text;  // bullet for top-level
   }).join('\n');
 
   // Use the same bodySize scaling as other slide types
