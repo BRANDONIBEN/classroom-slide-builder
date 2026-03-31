@@ -379,12 +379,21 @@ figma.ui.onmessage = async function (msg) {
   if (msg.type === 'commitSlide') {
     try {
       // Commit the PREVIEW frame as a design override, then replace the original
+      // If no preview exists (e.g. user edited directly in Figma), fall back to the original frame
       var previewFrame = figma.currentPage.findOne(function (n) {
         return n.type === 'FRAME' && n.name === '[PREVIEW]';
       });
+      var origFrame = msg.originalFrameId ? await figma.getNodeByIdAsync(msg.originalFrameId) : null;
       if (!previewFrame) {
-        figma.ui.postMessage({ type: 'error', message: 'No preview frame found. Make changes first.' });
-        return;
+        // Fall back to committing the original/selected frame directly
+        if (origFrame) {
+          previewFrame = origFrame;
+        } else if (figma.currentPage.selection.length > 0 && figma.currentPage.selection[0].type === 'FRAME') {
+          previewFrame = figma.currentPage.selection[0];
+        } else {
+          figma.ui.postMessage({ type: 'error', message: 'No preview or selected frame found to commit.' });
+          return;
+        }
       }
       var sNum = msg.sessionNum;
       var slNum = msg.slideNum;
@@ -394,7 +403,6 @@ figma.ui.onmessage = async function (msg) {
       }
 
       // Give preview proper slide name before committing
-      var origFrame = msg.originalFrameId ? await figma.getNodeByIdAsync(msg.originalFrameId) : null;
       var slideType = msg.slideType || 'body';
       previewFrame.name = '[' + slideType.toUpperCase() + '] S' + sNum + ' \u00B7 ' + slNum + ' \u2014 ' + (msg.title || 'Untitled');
       previewFrame.opacity = 1;
@@ -602,13 +610,24 @@ figma.ui.onmessage = async function (msg) {
         }
       });
 
+      // Assign a position-based slide number (1000+ to avoid collision with source slides)
+      var existingNums = [];
+      parentNode.children.forEach(function (child) {
+        if (child.type === 'FRAME' && child.width === W) {
+          var nm = child.name.match(/\u00B7\s*(\d+)\s*\u2014/);
+          if (nm) existingNums.push(parseInt(nm[1]));
+        }
+      });
+      var insertedNum = 1001;
+      while (existingNums.indexOf(insertedNum) !== -1) insertedNum++;
+
       // Build empty body slide with inherited footer
       var newSlide = {
         type: 'body',
         title: '',
         body: '',
         sessionNum: msg.sessionNum,
-        number: 0,
+        number: insertedNum,
         _courseName: neighborCourse,
         _sessionLabel: neighborSession
       };
