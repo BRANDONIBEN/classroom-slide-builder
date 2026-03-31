@@ -1460,6 +1460,8 @@ async function buildOrCloneFrame(slide, x, y) {
       var clone = stored.clone();
       clone.x = x;
       clone.y = y;
+      // Rename clone to proper slide name so edit panel can recognize it
+      clone.name = '[' + (slide.type || 'body').toUpperCase() + '] S' + slide.sessionNum + ' \u00B7 ' + slide.number + ' \u2014 ' + (slide.title || 'Untitled');
       // Update page number on cloned design override if needed
       if (slide._pageNum) {
         var pgNode = clone.findOne(function (n) { return n.name === '[PAGE_NUM]'; });
