@@ -956,6 +956,26 @@ figma.ui.onmessage = async function (msg) {
     });
     figma.ui.postMessage({ type: 'status', message: 'Stripped page numbers from ' + count + ' slides' });
   }
+  if (msg.type === 'getPageFrames') {
+    var pageName = figma.currentPage.name || '';
+    var allFrames = figma.currentPage.children.filter(function (n) {
+      return n.type === 'FRAME' && n.width === W && n.height === H;
+    });
+    allFrames.sort(function (a, b) { return a.x - b.x; });
+    var frameList = allFrames.map(function (f) {
+      // Parse slide info from frame name: [TYPE] S2 · 10 — Title
+      var m = f.name.match(/^\[(\w+)\]\s*S(\d+)\s*\u00B7\s*(\d+)\s*\u2014\s*(.*)/);
+      return {
+        name: f.name,
+        type: m ? m[1].toLowerCase() : '',
+        sessionNum: m ? parseInt(m[2]) : 0,
+        slideNum: m ? parseInt(m[3]) : 0,
+        title: m ? m[4] : f.name,
+        isCover: /^\[COVER\]/.test(f.name)
+      };
+    });
+    figma.ui.postMessage({ type: 'pageFrames', pageName: pageName, frames: frameList });
+  }
   if (msg.type === 'cleanupPrintPages') {
     var removed = cleanupPrintPages();
     figma.ui.postMessage({ type: 'printCleaned', count: removed });

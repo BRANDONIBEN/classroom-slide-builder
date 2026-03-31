@@ -767,6 +767,7 @@
     <button id="cleanPrintBtn" style="flex:0 0 auto;padding:5px 10px;font-size:10px;background:#c87070;color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:500;">Clear</button>
   </div>
   <button id="printCurrentPageBtn" style="width:100%;padding:6px;border-radius:4px;border:1px solid #3a3a3a;font-size:11px;background:#333;color:#aaa;cursor:pointer;font-weight:500;">Generate Print View from Current Page</button>
+  <button id="exportTimecodesBtn" style="width:100%;padding:6px;border-radius:4px;border:1px solid #3a3a3a;font-size:11px;background:#333;color:#aaa;cursor:pointer;font-weight:500;margin-top:4px;">Export Timecodes CSV</button>
 </div>
 
 <div class="status" id="status"></div>
@@ -1282,7 +1283,10 @@ function parseSlides(lines, courseId) {
   var currentSlide = null;
   var bodyLines = [];
 
+  var lastTimecode = '';
   function stripTimecode(s) {
+    var m = s.match(/\((\d+:\d{2}(?::\d{2})?)\)\s*$/);
+    lastTimecode = m ? m[1] : '';
     return s.replace(/\s*\([\d:]*\)\s*$/, '').trim();
   }
 
@@ -1338,7 +1342,8 @@ function parseSlides(lines, courseId) {
       number: currentSlide.num,
       title: currentSlide.title,
       body: body,
-      type: detectType(currentSlide.title, body)
+      type: detectType(currentSlide.title, body),
+      timecode: currentSlide.timecode || ''
     });
     bodyLines = [];
     currentSlide = null;
@@ -1394,7 +1399,7 @@ function parseSlides(lines, courseId) {
       if (slideTitle === '' || /^\([\d:]*\)$/.test(slideTitle)) {
         slideTitle = '';
       }
-      currentSlide = { num: parseInt(slideMatch[1]), title: slideTitle };
+      currentSlide = { num: parseInt(slideMatch[1]), title: slideTitle, timecode: lastTimecode };
       continue;
     }
 
@@ -2378,6 +2383,13 @@ document.getElementById('printCurrentPageBtn').addEventListener('click', functio
   parent.postMessage({ pluginMessage: { type: 'printCurrentPage' } }, '*');
 });
 
+document.getElementById('exportTimecodesBtn').addEventListener('click', function () {
+  var status = document.getElementById('status');
+  status.textContent = 'Reading page frames...';
+  status.className = 'status';
+  parent.postMessage({ pluginMessage: { type: 'getPageFrames' } }, '*');
+});
+
 // Auto-resize edit textareas
 // Live preview — debounced updates as user edits
 var previewTimer = null;
@@ -2675,6 +2687,57 @@ window.onmessage = function (event) {
     return;
   }
 
+  if (msg.type === 'pageFrames') {
+    // Build timecode CSV from current page frames matched to parsed slide data
+    var frames = msg.frames || [];
+    var pageName = msg.pageName || 'timecodes';
+    // Determine course from page name
+    var courseMatch = pageName.match(/^(.+?)\s*\u2014\s*Class/);
+    var courseName = courseMatch ? courseMatch[1].trim() : '';
+    var courseId = '';
+    for (var cid in COURSES) {
+      if (COURSES[cid].name === courseName) { courseId = cid; break; }
+    }
+    var allParsed = courseId ? getParsedSlides(courseId) : [];
+
+    var csvRows = ['Slide,Title,Timecode,Type'];
+    for (var fi = 0; fi < frames.length; fi++) {
+      var fr = frames[fi];
+      if (fr.isCover) {
+        csvRows.push('Cover,"' + (fr.title || 'Title Slide').replace(/"/g, '""') + '",0:00,cover');
+        continue;
+      }
+      // Match to parsed slide data by session + slide number
+      var matched = null;
+      for (var pi = 0; pi < allParsed.length; pi++) {
+        if (allParsed[pi].sessionNum === fr.sessionNum && allParsed[pi].number === fr.slideNum) {
+          matched = allParsed[pi];
+          break;
+        }
+      }
+      var tc = matched && matched.timecode ? matched.timecode : '';
+      var title = (fr.title || '').replace(/"/g, '""');
+      csvRows.push((fi) + ',"' + title + '",' + tc + ',' + fr.type);
+    }
+
+    // Download CSV
+    var csvContent = csvRows.join('\n');
+    var blob = new Blob([csvContent], { type: 'text/csv' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    // Clean filename from page name
+    var filename = pageName.replace(/[^a-zA-Z0-9\-_ ]/g, '').replace(/\s+/g, '_') + '_timecodes.csv';
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    var status = document.getElementById('status');
+    status.textContent = '\u2713 Exported ' + (csvRows.length - 1) + ' slides to ' + filename;
+    status.className = 'status success';
+  }
   if (msg.type === 'pageCharts') {
     var chartDiv = document.getElementById('chartLocators');
     var chartList = document.getElementById('chartLocatorList');
