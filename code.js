@@ -224,6 +224,7 @@ figma.ui.onmessage = async function (msg) {
   if (msg.type === 'build') {
     // Phase 1: Build slides
     try {
+      CURRENT_COURSE = msg.courseName || '';
       if (msg.colors) applyCustomColors(msg.colors);
       if (msg.fontConfig) await applyFontConfig(msg.fontConfig);
       var logoData = msg.logoData || { svg: null, bgColor: null };
@@ -248,6 +249,7 @@ figma.ui.onmessage = async function (msg) {
   if (msg.type === 'buildAll') {
     // Phase 1: Build all session pages
     try {
+      CURRENT_COURSE = msg.courseName || '';
       if (msg.colors) applyCustomColors(msg.colors);
       if (msg.fontConfig) await applyFontConfig(msg.fontConfig);
       var logoData = msg.logoData || { svg: null, bgColor: null };
@@ -1020,9 +1022,19 @@ function applyCustomColors(colors) {
 
 var OVERRIDE_PREFIX = 'slideOverride_';
 var STORAGE_PAGE_NAME = '_Slide Overrides (do not delete)';
+var CURRENT_COURSE = ''; // Set during build/edit to scope overrides per course
+
+function courseFromPageName() {
+  var name = figma.currentPage.name || '';
+  var m = name.match(/^(.+?)\s*\u2014\s*Class/);
+  return m ? m[1].trim() : '';
+}
 
 function overrideKey(sessionNum, slideNum) {
-  return OVERRIDE_PREFIX + 'S' + sessionNum + '_' + slideNum;
+  // Use CURRENT_COURSE if set (during build), otherwise derive from page name
+  var course = CURRENT_COURSE || courseFromPageName();
+  var prefix = course ? (course + '_') : '';
+  return OVERRIDE_PREFIX + prefix + 'S' + sessionNum + '_' + slideNum;
 }
 
 async function getStoragePage() {
@@ -1167,7 +1179,15 @@ async function clearAllOverrides() {
 }
 
 function getOverrideCount() {
-  return JSON.parse(figma.root.getPluginData('overrideIndex') || '[]').length;
+  var index = JSON.parse(figma.root.getPluginData('overrideIndex') || '[]');
+  var course = CURRENT_COURSE || courseFromPageName();
+  if (!course) return index.length;
+  var prefix = OVERRIDE_PREFIX + course + '_';
+  var count = 0;
+  for (var i = 0; i < index.length; i++) {
+    if (index[i].indexOf(prefix) === 0) count++;
+  }
+  return count;
 }
 
 function getFilteredOverrideCount(sessionNums) {
