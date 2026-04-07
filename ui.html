@@ -2449,9 +2449,15 @@ document.getElementById('timecodesToggleBtn').addEventListener('click', function
   setTimeout(resizeUI, 50);
 });
 
-document.getElementById('exportAllTimecodesBtn').addEventListener('click', function () {
-  document.getElementById('timecodesStatus').textContent = 'Loading all pages...';
+document.getElementById('exportAllTimecodesBtn').addEventListener('click', async function () {
+  document.getElementById('timecodesStatus').textContent = 'Loading course data...';
   document.getElementById('timecodesStatus').style.color = '#aaa';
+  // Ensure all course texts are loaded before building source timecode maps
+  var courseIds = Object.keys(COURSES);
+  for (var i = 0; i < courseIds.length; i++) {
+    await ensureCourseLoaded(courseIds[i]);
+  }
+  document.getElementById('timecodesStatus').textContent = 'Loading all pages...';
   parent.postMessage({ pluginMessage: { type: 'getAllPageTimecodes' } }, '*');
 });
 
