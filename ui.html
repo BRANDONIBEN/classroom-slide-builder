@@ -2431,6 +2431,11 @@ document.getElementById('printCurrentPageBtn').addEventListener('click', functio
 });
 
 // ── Timecodes Panel ──────────────────────────────────────────
+function normalizeTC(tc) {
+  if (!tc) return tc;
+  // Strip leading zero from minutes: "01:07" → "1:07", "00:30" → "0:30"
+  return tc.replace(/^0+(\d)/, '$1');
+}
 var timecodesOpen = false;
 var tcFrames = [];
 var tcSaveKey = '';
@@ -2829,7 +2834,7 @@ window.onmessage = function (event) {
         }
         var allParsed = tcCourseId ? getParsedSlides(tcCourseId) : [];
         var srcMap = {};
-        allParsed.forEach(function (s) { if (s.timecode) srcMap[s.sessionNum + '_' + s.number] = s.timecode; });
+        allParsed.forEach(function (s) { if (s.timecode) srcMap[s.sessionNum + '_' + s.number] = normalizeTC(s.timecode); });
 
         var slideCounter = 0;
         pg.frames.forEach(function (fr) {
@@ -2893,7 +2898,7 @@ window.onmessage = function (event) {
       // Build source timecode lookup: sessionNum_slideNum → timecode
       tcSourceMap = {};
       allParsed.forEach(function (s) {
-        if (s.timecode) tcSourceMap[s.sessionNum + '_' + s.number] = s.timecode;
+        if (s.timecode) tcSourceMap[s.sessionNum + '_' + s.number] = normalizeTC(s.timecode);
       });
 
       var list = document.getElementById('timecodesList');
