@@ -2487,7 +2487,7 @@ document.getElementById('exportAllTimecodesBtn').addEventListener('click', async
 });
 
 document.getElementById('copyTimecodesCsvBtn').addEventListener('click', function () {
-  var rows = [',Time'];
+  var rows = ['Visual,Time'];
   var missing = [];
   var list = document.getElementById('timecodesList');
   var inputs = list.querySelectorAll('input[data-slot]');
@@ -2498,7 +2498,7 @@ document.getElementById('copyTimecodesCsvBtn').addEventListener('click', functio
       missing.push(label);
       tc = '?';
     }
-    rows.push(label + ',' + tc);
+    rows.push(label + ",'" + tc);
   });
   var csv = rows.join('\n');
   var warn = document.getElementById('timecodesMissingWarn');
@@ -2859,11 +2859,11 @@ window.onmessage = function (event) {
           var sourceTC = fr.isCover ? '0:00' : (srcMap[fr.sessionNum + '_' + fr.slideNum] || '');
           var tc = (pg.saved[slotKey] !== undefined) ? pg.saved[slotKey] : sourceTC;
           if (!tc) missing.push(pg.pageName + ' — ' + label);
-          rows.push(formatPageNameForCSV(pg.pageName) + ',' + label + ',' + (tc || '?'));
+          rows.push(formatPageNameForCSV(pg.pageName) + ',' + label + ",'" + (tc || '?'));
         });
       });
 
-      var csv = 'Class,Slide,Time\n' + rows.join('\n');
+      var csv = 'Class,Visual,Time\n' + rows.join('\n');
       var tcStatus = document.getElementById('timecodesStatus');
 
       if (missing.length > 0) {
