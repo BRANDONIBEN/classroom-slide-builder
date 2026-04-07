@@ -2431,6 +2431,22 @@ document.getElementById('printCurrentPageBtn').addEventListener('click', functio
 });
 
 // ── Timecodes Panel ──────────────────────────────────────────
+var COURSE_ABBR = { 'Biblical Finances': 'BF', 'Scripture Narrative': 'SN', 'Essential Theology': 'ET' };
+function formatPageNameForCSV(pageName) {
+  // "Biblical Finances — Class 6: Needs, Wants, and Budgets" → "BF-Class6-NeedsWantsBudgets"
+  var m = pageName.match(/^(.+?)\s*[\u2014\-]\s*Class\s*(\d+)[:\s]+(.+)$/);
+  if (!m) return pageName.replace(/[^a-zA-Z0-9]/g, '');
+  var abbr = COURSE_ABBR[m[1].trim()] || m[1].trim().split(/\s+/).map(function (w) { return w[0].toUpperCase(); }).join('');
+  var classNum = m[2];
+  var sessionTitle = m[3].trim()
+    .replace(/[,:.+&]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .split(' ')
+    .map(function (w) { return w.charAt(0).toUpperCase() + w.slice(1); })
+    .join('');
+  return abbr + '-Class' + classNum + '-' + sessionTitle;
+}
 function normalizeTC(tc) {
   if (!tc) return tc;
   // Strip leading zero from minutes: "01:07" → "1:07", "00:30" → "0:30"
@@ -2843,7 +2859,7 @@ window.onmessage = function (event) {
           var sourceTC = fr.isCover ? '0:00' : (srcMap[fr.sessionNum + '_' + fr.slideNum] || '');
           var tc = (pg.saved[slotKey] !== undefined) ? pg.saved[slotKey] : sourceTC;
           if (!tc) missing.push(pg.pageName + ' — ' + label);
-          rows.push('"' + pg.pageName.replace(/"/g, '""') + '",' + label + ',' + (tc || '?'));
+          rows.push(formatPageNameForCSV(pg.pageName) + ',' + label + ',' + (tc || '?'));
         });
       });
 
