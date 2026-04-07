@@ -2436,7 +2436,7 @@ var tcFrames = [];
 var tcSaveKey = '';
 var tcSourceMap = {}; // slideNum → source timecode
 
-document.getElementById('timecodesToggleBtn').addEventListener('click', function () {
+document.getElementById('timecodesToggleBtn').addEventListener('click', async function () {
   timecodesOpen = !timecodesOpen;
   var panel = document.getElementById('timecodesPanel');
   var arrow = document.getElementById('timecodesArrow');
@@ -2444,6 +2444,10 @@ document.getElementById('timecodesToggleBtn').addEventListener('click', function
   arrow.style.transform = timecodesOpen ? 'rotate(90deg)' : '';
   if (timecodesOpen) {
     document.getElementById('timecodesStatus').textContent = 'Loading...';
+    var courseIds = Object.keys(COURSES);
+    for (var i = 0; i < courseIds.length; i++) {
+      await ensureCourseLoaded(courseIds[i]);
+    }
     parent.postMessage({ pluginMessage: { type: 'getPageTimecodes' } }, '*');
   }
   setTimeout(resizeUI, 50);
