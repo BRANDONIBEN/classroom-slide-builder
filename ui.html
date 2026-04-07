@@ -767,7 +767,19 @@
     <button id="cleanPrintBtn" style="flex:0 0 auto;padding:5px 10px;font-size:10px;background:#c87070;color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:500;">Clear</button>
   </div>
   <button id="printCurrentPageBtn" style="width:100%;padding:6px;border-radius:4px;border:1px solid #3a3a3a;font-size:11px;background:#333;color:#aaa;cursor:pointer;font-weight:500;">Generate Print View from Current Page</button>
-  <button id="exportTimecodesBtn" style="width:100%;padding:6px;border-radius:4px;border:1px solid #3a3a3a;font-size:11px;background:#333;color:#aaa;cursor:pointer;font-weight:500;margin-top:4px;">Export Timecodes CSV</button>
+</div>
+
+<!-- Timecodes Panel -->
+<div id="timecodesSection" style="background:#1e1e1e;border:1px solid #2a2a2a;border-radius:6px;margin:6px 0;">
+  <button id="timecodesToggleBtn" style="width:100%;padding:8px 12px;background:none;border:none;color:#aaa;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;text-align:left;">
+    <span>Timecodes</span><span id="timecodesArrow" style="font-size:9px;transition:transform 0.15s;">&#9654;</span>
+  </button>
+  <div id="timecodesPanel" style="display:none;padding:0 10px 10px;">
+    <div id="timecodesMissingWarn" style="display:none;font-size:10px;color:#c87070;background:#2a1a1a;border:1px solid #4a2a2a;border-radius:3px;padding:5px 8px;margin-bottom:6px;"></div>
+    <div id="timecodesList" style="border:1px solid #2a2a2a;border-radius:4px;overflow:hidden;margin-bottom:8px;"></div>
+    <button id="copyTimecodesCsvBtn" style="width:100%;padding:6px;background:#2a3a2a;border:1px solid #3a5a3a;border-radius:4px;color:#6bcb77;font-size:11px;font-weight:600;cursor:pointer;">Copy CSV to Clipboard</button>
+    <div id="timecodesStatus" style="font-size:10px;color:#666;margin-top:4px;text-align:center;"></div>
+  </div>
 </div>
 
 <div class="status" id="status"></div>
@@ -2415,11 +2427,68 @@ document.getElementById('printCurrentPageBtn').addEventListener('click', functio
   parent.postMessage({ pluginMessage: { type: 'printCurrentPage' } }, '*');
 });
 
-document.getElementById('exportTimecodesBtn').addEventListener('click', function () {
-  var status = document.getElementById('status');
-  status.textContent = 'Reading page frames...';
-  status.className = 'status';
-  parent.postMessage({ pluginMessage: { type: 'getPageFrames' } }, '*');
+// ── Timecodes Panel ──────────────────────────────────────────
+var timecodesOpen = false;
+var tcFrames = [];
+var tcSaveKey = '';
+var tcSourceMap = {}; // slideNum → source timecode
+
+document.getElementById('timecodesToggleBtn').addEventListener('click', function () {
+  timecodesOpen = !timecodesOpen;
+  var panel = document.getElementById('timecodesPanel');
+  var arrow = document.getElementById('timecodesArrow');
+  panel.style.display = timecodesOpen ? 'block' : 'none';
+  arrow.style.transform = timecodesOpen ? 'rotate(90deg)' : '';
+  if (timecodesOpen) {
+    document.getElementById('timecodesStatus').textContent = 'Loading...';
+    parent.postMessage({ pluginMessage: { type: 'getPageTimecodes' } }, '*');
+  }
+  setTimeout(resizeUI, 50);
+});
+
+document.getElementById('copyTimecodesCsvBtn').addEventListener('click', function () {
+  var rows = [',Time'];
+  var missing = [];
+  var list = document.getElementById('timecodesList');
+  var inputs = list.querySelectorAll('input[data-slot]');
+  inputs.forEach(function (inp) {
+    var label = inp.getAttribute('data-label');
+    var tc = inp.value.trim();
+    if (!tc) {
+      missing.push(label);
+      tc = '?';
+    }
+    rows.push(label + ',' + tc);
+  });
+  var csv = rows.join('\n');
+  var warn = document.getElementById('timecodesMissingWarn');
+  var tcStatus = document.getElementById('timecodesStatus');
+  if (missing.length > 0) {
+    warn.style.display = 'block';
+    warn.textContent = 'Missing timecodes for: ' + missing.join(', ') + '. These will export as "?".';
+  } else {
+    warn.style.display = 'none';
+  }
+  try {
+    navigator.clipboard.writeText(csv).then(function () {
+      tcStatus.textContent = '\u2713 Copied to clipboard (' + (rows.length - 1) + ' slides)';
+      tcStatus.style.color = '#6bcb77';
+    });
+  } catch (e) {
+    // Fallback: show in textarea
+    var ta = document.createElement('textarea');
+    ta.value = csv;
+    ta.style.cssText = 'width:100%;height:120px;margin-top:6px;font-size:10px;font-family:monospace;background:#111;color:#ccc;border:1px solid #333;border-radius:3px;padding:4px;box-sizing:border-box;';
+    ta.readOnly = true;
+    var btn = document.getElementById('copyTimecodesCsvBtn');
+    var old = document.getElementById('tcFallbackTa');
+    if (old) old.remove();
+    ta.id = 'tcFallbackTa';
+    btn.parentNode.insertBefore(ta, btn.nextSibling);
+    ta.focus(); ta.select();
+    tcStatus.textContent = 'Select all & copy above';
+    tcStatus.style.color = '#aaa';
+  }
 });
 
 // Auto-resize edit textareas
@@ -2719,61 +2788,97 @@ window.onmessage = function (event) {
     return;
   }
 
-  if (msg.type === 'pageFrames') {
+  if (msg.type === 'pageTimecodes') {
     try {
-    // Build timecode CSV from current page frames matched to parsed slide data
-    var frames = msg.frames || [];
-    var pageName = msg.pageName || 'timecodes';
-    // Determine course from page name
-    var courseMatch = pageName.match(/^(.+?)\s*\u2014\s*Class/);
-    var courseName = courseMatch ? courseMatch[1].trim() : '';
-    var courseId = '';
-    for (var cid in COURSES) {
-      if (COURSES[cid].name === courseName) { courseId = cid; break; }
-    }
-    var allParsed = courseId ? getParsedSlides(courseId) : [];
+      tcFrames = msg.frames || [];
+      tcSaveKey = msg.saveKey || '';
+      var saved = msg.saved || {};
 
-    var csvRows = ['Slide,Timecode'];
-    for (var fi = 0; fi < frames.length; fi++) {
-      var fr = frames[fi];
-      if (fr.isCover) {
-        csvRows.push('Cover,0:00');
-        continue;
+      // Determine course from page name
+      var pageName = msg.pageName || '';
+      var courseMatch = pageName.match(/^(.+?)\s*\u2014\s*Class/);
+      var tcCourseName = courseMatch ? courseMatch[1].trim() : '';
+      var tcCourseId = '';
+      for (var cid in COURSES) {
+        if (COURSES[cid].name === tcCourseName) { tcCourseId = cid; break; }
       }
-      // Match to parsed slide data by session + slide number
-      var matched = null;
-      for (var pi = 0; pi < allParsed.length; pi++) {
-        if (allParsed[pi].sessionNum === fr.sessionNum && allParsed[pi].number === fr.slideNum) {
-          matched = allParsed[pi];
-          break;
+      var allParsed = tcCourseId ? getParsedSlides(tcCourseId) : [];
+
+      // Build source timecode lookup: sessionNum_slideNum → timecode
+      tcSourceMap = {};
+      allParsed.forEach(function (s) {
+        if (s.timecode) tcSourceMap[s.sessionNum + '_' + s.number] = s.timecode;
+      });
+
+      var list = document.getElementById('timecodesList');
+      list.innerHTML = '';
+
+      // Header row
+      var hdr = document.createElement('div');
+      hdr.style.cssText = 'display:flex;align-items:center;padding:5px 8px;background:#252525;border-bottom:1px solid #2a2a2a;';
+      hdr.innerHTML = '<span style="flex:0 0 52px;font-size:10px;color:#666;font-weight:600;text-transform:uppercase;letter-spacing:0.4px;">Slide</span>' +
+                      '<span style="flex:1;font-size:10px;color:#666;font-weight:600;text-transform:uppercase;letter-spacing:0.4px;">Time</span>';
+      list.appendChild(hdr);
+
+      var slideCounter = 0;
+      tcFrames.forEach(function (fr, i) {
+        var isCover = fr.isCover;
+        var slotKey = isCover ? 'cover' : (fr.sessionNum + '_' + fr.slideNum);
+        var label = isCover ? 'Cover' : String(++slideCounter);
+        var sourceTC = isCover ? '0:00' : (tcSourceMap[fr.sessionNum + '_' + fr.slideNum] || '');
+        var savedTC = saved[slotKey];
+        var tc = savedTC !== undefined ? savedTC : sourceTC;
+        var isInserted = fr.isInserted || (!isCover && !sourceTC && !savedTC);
+        var isMissing = !tc;
+
+        var row = document.createElement('div');
+        row.style.cssText = 'display:flex;align-items:center;padding:4px 8px;border-bottom:1px solid #222;' + (i % 2 === 0 ? 'background:#1a1a1a;' : 'background:#1e1e1e;');
+
+        var labelEl = document.createElement('span');
+        labelEl.style.cssText = 'flex:0 0 52px;font-size:11px;color:' + (isCover ? '#D4A853' : '#999') + ';font-family:monospace;';
+        labelEl.textContent = label;
+
+        var inp = document.createElement('input');
+        inp.type = 'text';
+        inp.value = tc;
+        inp.placeholder = isInserted ? 'inserted — add timecode' : (isMissing ? 'missing' : '');
+        inp.setAttribute('data-slot', slotKey);
+        inp.setAttribute('data-label', label);
+        inp.readOnly = isCover;
+        inp.style.cssText = 'flex:1;background:' + (isCover ? 'transparent' : (isMissing ? '#2a1a1a' : '#111')) +
+          ';border:1px solid ' + (isMissing && !isCover ? '#5a2a2a' : '#2a2a2a') +
+          ';border-radius:3px;color:' + (isCover ? '#D4A853' : (isMissing ? '#c87070' : '#ccc')) +
+          ';font-size:11px;font-family:monospace;padding:2px 5px;width:100%;box-sizing:border-box;outline:none;';
+
+        if (!isCover) {
+          inp.addEventListener('change', function () {
+            var val = this.value.trim();
+            var slot = this.getAttribute('data-slot');
+            this.style.background = val ? '#111' : '#2a1a1a';
+            this.style.borderColor = val ? '#2a2a2a' : '#5a2a2a';
+            this.style.color = val ? '#ccc' : '#c87070';
+            parent.postMessage({ pluginMessage: { type: 'saveTimecodes', saveKey: tcSaveKey, slotKey: slot, timecode: val } }, '*');
+            document.getElementById('timecodesStatus').textContent = 'Saved.';
+            document.getElementById('timecodesStatus').style.color = '#6bcb77';
+            setTimeout(function () { document.getElementById('timecodesStatus').textContent = ''; }, 1500);
+          });
         }
-      }
-      var tc = matched && matched.timecode ? matched.timecode : '';
-      csvRows.push(fi + ',' + tc);
-    }
 
-    // Show CSV in a copyable textarea (Figma plugin sandbox blocks clipboard + downloads)
-    var csvContent = csvRows.join('\n');
-    var status = document.getElementById('status');
-    // Remove any previous CSV textarea
-    var oldTa = document.getElementById('timecodeCsvOutput');
-    if (oldTa) oldTa.remove();
-    var ta = document.createElement('textarea');
-    ta.id = 'timecodeCsvOutput';
-    ta.value = csvContent;
-    ta.style.cssText = 'width:100%;height:160px;margin-top:8px;font-size:10px;background:#1a1a1a;color:#ccc;border:1px solid #444;border-radius:4px;padding:6px;font-family:monospace;box-sizing:border-box;';
-    ta.readOnly = true;
-    status.textContent = '\u2713 ' + (csvRows.length - 1) + ' slides — select all & copy below:';
-    status.className = 'status success';
-    status.parentNode.insertBefore(ta, status.nextSibling);
-    ta.focus();
-    ta.select();
+        row.appendChild(labelEl);
+        row.appendChild(inp);
+        list.appendChild(row);
+      });
+
+      document.getElementById('timecodesStatus').textContent = tcFrames.length + ' slides loaded.';
+      document.getElementById('timecodesStatus').style.color = '#666';
+      setTimeout(resizeUI, 50);
     } catch (err) {
-      var status = document.getElementById('status');
-      status.textContent = 'Error: ' + String(err);
-      status.className = 'status error';
-      console.error('[TIMECODES] Error:', err);
+      document.getElementById('timecodesStatus').textContent = 'Error: ' + String(err);
+      console.error('[TIMECODES]', err);
     }
+  }
+  if (msg.type === 'pageFrames') {
+    // Legacy handler — kept for QA/chart locator use
   }
   if (msg.type === 'pageCharts') {
     var chartDiv = document.getElementById('chartLocators');

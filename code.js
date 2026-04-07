@@ -982,7 +982,6 @@ figma.ui.onmessage = async function (msg) {
     });
     allFrames.sort(function (a, b) { return a.x - b.x; });
     var frameList = allFrames.map(function (f) {
-      // Parse slide info from frame name: [TYPE] S2 · 10 — Title
       var m = f.name.match(/^\[(\w+)\]\s*S(\d+)\s*\u00B7\s*(\d+)\s*\u2014\s*(.*)/);
       return {
         name: f.name,
@@ -994,6 +993,40 @@ figma.ui.onmessage = async function (msg) {
       };
     });
     figma.ui.postMessage({ type: 'pageFrames', pageName: pageName, frames: frameList });
+  }
+  if (msg.type === 'getPageTimecodes') {
+    var pageName = figma.currentPage.name || '';
+    var allFrames = figma.currentPage.children.filter(function (n) {
+      return n.type === 'FRAME' && n.width === W && n.height === H && n.name !== '[PREVIEW]';
+    });
+    allFrames.sort(function (a, b) { return a.x - b.x; });
+    var frameList = allFrames.map(function (f) {
+      var m = f.name.match(/^\[(\w+)\]\s*S(\d+)\s*\u00B7\s*(\d+)\s*\u2014\s*(.*)/);
+      var isCover = /^\[COVER\]/.test(f.name);
+      var sNum = m ? parseInt(m[2]) : 0;
+      var slNum = m ? parseInt(m[3]) : 0;
+      return {
+        name: f.name,
+        type: m ? m[1].toLowerCase() : (isCover ? 'cover' : ''),
+        sessionNum: sNum,
+        slideNum: slNum,
+        title: m ? m[4] : f.name,
+        isCover: isCover,
+        isInserted: !m && !isCover
+      };
+    });
+    // Derive save key from page name
+    var saveKey = 'tc_' + pageName.replace(/[^a-zA-Z0-9]/g, '_');
+    var saved = {};
+    try { saved = JSON.parse(figma.root.getPluginData(saveKey) || '{}'); } catch (e) {}
+    figma.ui.postMessage({ type: 'pageTimecodes', pageName: pageName, frames: frameList, saved: saved, saveKey: saveKey });
+  }
+  if (msg.type === 'saveTimecodes') {
+    var raw = figma.root.getPluginData(msg.saveKey);
+    var existing = {};
+    try { existing = JSON.parse(raw || '{}'); } catch (e) {}
+    existing[msg.slotKey] = msg.timecode;
+    figma.root.setPluginData(msg.saveKey, JSON.stringify(existing));
   }
   if (msg.type === 'cleanupPrintPages') {
     var removed = cleanupPrintPages();
