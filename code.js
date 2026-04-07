@@ -205,10 +205,12 @@ function sendPageCharts() {
 }
 
 // Send chart data on page change too
-figma.on('currentpagechange', function () {
+figma.on('currentpagechange', async function () {
+  await figma.currentPage.loadAsync();
   sendPageCharts();
-  // Reset edit state when page changes
   figma.ui.postMessage({ type: 'resetEdit' });
+  // Auto-refresh timecodes panel if open
+  figma.ui.postMessage({ type: 'pageChanged', pageName: figma.currentPage.name });
 });
 
 // Clean up preview frame when plugin closes
@@ -995,6 +997,7 @@ figma.ui.onmessage = async function (msg) {
     figma.ui.postMessage({ type: 'pageFrames', pageName: pageName, frames: frameList });
   }
   if (msg.type === 'getPageTimecodes') {
+    await figma.currentPage.loadAsync();
     var pageName = figma.currentPage.name || '';
     var allFrames = figma.currentPage.children.filter(function (n) {
       return n.type === 'FRAME' && n.width === W && n.height === H && n.name !== '[PREVIEW]';
@@ -1020,6 +1023,35 @@ figma.ui.onmessage = async function (msg) {
     var saved = {};
     try { saved = JSON.parse(figma.root.getPluginData(saveKey) || '{}'); } catch (e) {}
     figma.ui.postMessage({ type: 'pageTimecodes', pageName: pageName, frames: frameList, saved: saved, saveKey: saveKey });
+  }
+  if (msg.type === 'getAllPageTimecodes') {
+    var allResults = [];
+    var pages = figma.root.children.slice();
+    for (var pi = 0; pi < pages.length; pi++) {
+      var pg = pages[pi];
+      if (/^\[PRINT\]|^\[TRASH\]|^\[STORAGE\]|^_/.test(pg.name) || pg.name === 'Page 1') continue;
+      await pg.loadAsync();
+      var pgFrames = pg.children.filter(function (n) {
+        return n.type === 'FRAME' && n.width === W && n.height === H && n.name !== '[PREVIEW]';
+      });
+      pgFrames.sort(function (a, b) { return a.x - b.x; });
+      var saveKey = 'tc_' + pg.name.replace(/[^a-zA-Z0-9]/g, '_');
+      var saved = {};
+      try { saved = JSON.parse(figma.root.getPluginData(saveKey) || '{}'); } catch (e) {}
+      var frameList = pgFrames.map(function (f) {
+        var m = f.name.match(/^\[(\w+)\]\s*S(\d+)\s*\u00B7\s*(\d+)\s*\u2014\s*(.*)/);
+        var isCover = /^\[COVER\]/.test(f.name);
+        return {
+          name: f.name,
+          sessionNum: m ? parseInt(m[2]) : 0,
+          slideNum: m ? parseInt(m[3]) : 0,
+          isCover: isCover,
+          isInserted: !m && !isCover
+        };
+      });
+      allResults.push({ pageName: pg.name, frames: frameList, saved: saved, saveKey: saveKey });
+    }
+    figma.ui.postMessage({ type: 'allPageTimecodes', pages: allResults });
   }
   if (msg.type === 'saveTimecodes') {
     var raw = figma.root.getPluginData(msg.saveKey);
